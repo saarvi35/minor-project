@@ -1,0 +1,3187 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R 10 0 R 12 0 R 14 0 R 16 0 R 18 0 R 20 0 R 22 0 R 24 0 R 26 0 R 28 0 R 30 0 R 32 0 R 34 0 R 36 0 R 38 0 R 40 0 R 42 0 R 44 0 R 46 0 R 48 0 R 50 0 R] /Count 24 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Length 1980 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(BACKEND API DOCUMENTATION) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(This document lists discovered backend APIs with URL, method, and sample JSON format.) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Notes) Tj
+0 -12 Td
+(-----) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* Base prefix from config URLs: /api/) Tj
+0 -12 Td
+(* JSON blocks are sample request/response formats inferred from views, serializers, and models.) Tj
+0 -12 Td
+(* Router-based endpoints include standard DRF list/detail methods.) Tj
+0 -12 Td
+(* File fields like logo, attachment, and image may be sent through multipart/form-data.) Tj
+0 -12 Td
+(* Backend source files were not modified.) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Total discovered API entries: 57) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Accounts) Tj
+0 -12 Td
+(--------) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(1. POST /api/login/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `LoginView`) Tj
+0 -12 Td
+(* Description: User login) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "email": "owner@company.com",) Tj
+0 -12 Td
+(    "password": "Secret123") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "success": true,) Tj
+0 -12 Td
+(    "message": "Login successful",) Tj
+0 -12 Td
+(    "data": {) Tj
+0 -12 Td
+(    "user_id": 1,) Tj
+0 -12 Td
+(    "name": "Owner Name",) Tj
+0 -12 Td
+(    "email": "owner@company.com",) Tj
+0 -12 Td
+(    "role": "OWNER",) Tj
+0 -12 Td
+(    "company": "Acme Pvt Ltd",) Tj
+0 -12 Td
+(    "access": "jwt-access-token",) Tj
+0 -12 Td
+(    "refresh": "jwt-refresh-token") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(2. POST /api/logout/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `LogoutView`) Tj
+0 -12 Td
+(* Description: User logout) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "refresh": "jwt-refresh-token") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+6 0 obj
+<< /Length 1786 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    {) Tj
+0 -12 Td
+(    "success": true,) Tj
+0 -12 Td
+(    "message": "Logged out successfully") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(3. POST /api/attendance/checkin/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `MarkAttendanceAPI`) Tj
+0 -12 Td
+(* Description: Mark attendance check-in) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {}) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "message": "Attendance marked successfully",) Tj
+0 -12 Td
+(    "data": {) Tj
+0 -12 Td
+(    "date": "2026-03-30",) Tj
+0 -12 Td
+(    "check_in": "09:15:00") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(4. POST /api/attendance/checkout/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `CheckoutAttendanceAPI`) Tj
+0 -12 Td
+(* Description: Mark attendance check-out) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {}) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "message": "Checked out successfully",) Tj
+0 -12 Td
+(    "check_out": "18:05:00",) Tj
+0 -12 Td
+(    "working_hours": "8:50:00") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(5. POST /api/leave/apply/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `ApplyLeaveAPI`) Tj
+0 -12 Td
+(* Description: Apply leave request) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "start_date": "2026-04-02",) Tj
+0 -12 Td
+(    "end_date": "2026-04-04",) Tj
+0 -12 Td
+(    "reason": "Medical leave") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "message": "Leave request submitted",) Tj
+0 -12 Td
+(    "leave_id": 12,) Tj
+0 -12 Td
+(    "status": "PENDING") Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 6 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+8 0 obj
+<< /Length 1800 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Companies) Tj
+0 -12 Td
+(---------) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(1. GET /api/companies/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `CompanyViewSet`) Tj
+0 -12 Td
+(* Description: List companies) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 1,) Tj
+0 -12 Td
+(    "name": "Acme Pvt Ltd",) Tj
+0 -12 Td
+(    "email": "info@acme.com",) Tj
+0 -12 Td
+(    "phone": "9876543210",) Tj
+0 -12 Td
+(    "size": "50-100",) Tj
+0 -12 Td
+(    "address": "Jaipur",) Tj
+0 -12 Td
+(    "logo": "/media/company_logos/logo.png",) Tj
+0 -12 Td
+(    "owner": 1,) Tj
+0 -12 Td
+(    "last_user_number": 8) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(2. POST /api/companies/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `CompanyViewSet`) Tj
+0 -12 Td
+(* Description: Create company) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "name": "Acme Pvt Ltd",) Tj
+0 -12 Td
+(    "email": "info@acme.com",) Tj
+0 -12 Td
+(    "phone": "9876543210",) Tj
+0 -12 Td
+(    "size": "50-100",) Tj
+0 -12 Td
+(    "address": "Jaipur",) Tj
+0 -12 Td
+(    "logo": null,) Tj
+0 -12 Td
+(    "owner": 1,) Tj
+0 -12 Td
+(    "last_user_number": 0) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 1,) Tj
+0 -12 Td
+(    "name": "Acme Pvt Ltd",) Tj
+0 -12 Td
+(    "email": "info@acme.com",) Tj
+0 -12 Td
+(    "phone": "9876543210",) Tj
+0 -12 Td
+(    "size": "50-100",) Tj
+0 -12 Td
+(    "address": "Jaipur",) Tj
+0 -12 Td
+(    "logo": null,) Tj
+0 -12 Td
+(    "owner": 1,) Tj
+0 -12 Td
+(    "last_user_number": 0) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(3. GET /api/companies/{id}/) Tj
+0 -12 Td
+() Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 8 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+10 0 obj
+<< /Length 1885 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(* View: `CompanyViewSet`) Tj
+0 -12 Td
+(* Description: Retrieve company) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 1,) Tj
+0 -12 Td
+(    "name": "Acme Pvt Ltd",) Tj
+0 -12 Td
+(    "email": "info@acme.com",) Tj
+0 -12 Td
+(    "phone": "9876543210",) Tj
+0 -12 Td
+(    "size": "50-100",) Tj
+0 -12 Td
+(    "address": "Jaipur",) Tj
+0 -12 Td
+(    "logo": "/media/company_logos/logo.png",) Tj
+0 -12 Td
+(    "owner": 1,) Tj
+0 -12 Td
+(    "last_user_number": 8) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(4. PUT /api/companies/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `CompanyViewSet`) Tj
+0 -12 Td
+(* Description: Update company) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "name": "Acme Pvt Ltd",) Tj
+0 -12 Td
+(    "email": "info@acme.com",) Tj
+0 -12 Td
+(    "phone": "9999999999",) Tj
+0 -12 Td
+(    "size": "100-200",) Tj
+0 -12 Td
+(    "address": "Delhi",) Tj
+0 -12 Td
+(    "logo": null,) Tj
+0 -12 Td
+(    "owner": 1,) Tj
+0 -12 Td
+(    "last_user_number": 8) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 1,) Tj
+0 -12 Td
+(    "name": "Acme Pvt Ltd",) Tj
+0 -12 Td
+(    "email": "info@acme.com",) Tj
+0 -12 Td
+(    "phone": "9999999999",) Tj
+0 -12 Td
+(    "size": "100-200",) Tj
+0 -12 Td
+(    "address": "Delhi",) Tj
+0 -12 Td
+(    "logo": null,) Tj
+0 -12 Td
+(    "owner": 1,) Tj
+0 -12 Td
+(    "last_user_number": 8) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(5. PATCH /api/companies/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `CompanyViewSet`) Tj
+0 -12 Td
+(* Description: Partial update company) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "phone": "9999999999",) Tj
+0 -12 Td
+(    "address": "Delhi") Tj
+0 -12 Td
+(    }) Tj
+ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 10 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+12 0 obj
+<< /Length 1933 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 1,) Tj
+0 -12 Td
+(    "name": "Acme Pvt Ltd",) Tj
+0 -12 Td
+(    "email": "info@acme.com",) Tj
+0 -12 Td
+(    "phone": "9999999999",) Tj
+0 -12 Td
+(    "size": "50-100",) Tj
+0 -12 Td
+(    "address": "Delhi",) Tj
+0 -12 Td
+(    "logo": null,) Tj
+0 -12 Td
+(    "owner": 1,) Tj
+0 -12 Td
+(    "last_user_number": 8) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(6. DELETE /api/companies/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `CompanyViewSet`) Tj
+0 -12 Td
+(* Description: Delete company) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {}) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(7. GET /api/roles/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `RoleViewSet`) Tj
+0 -12 Td
+(* Description: List roles) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "name": "MANAGER",) Tj
+0 -12 Td
+(    "slug": "manager",) Tj
+0 -12 Td
+(    "can_manage_company": false,) Tj
+0 -12 Td
+(    "can_manage_roles": false,) Tj
+0 -12 Td
+(    "can_manage_users": true,) Tj
+0 -12 Td
+(    "can_create_project": true,) Tj
+0 -12 Td
+(    "can_assign_task": true,) Tj
+0 -12 Td
+(    "can_view_all_tasks": false,) Tj
+0 -12 Td
+(    "can_view_team_tasks": true,) Tj
+0 -12 Td
+(    "can_view_assigned_tasks": true,) Tj
+0 -12 Td
+(    "can_update_task_status": true,) Tj
+0 -12 Td
+(    "can_view_project_progress": true,) Tj
+0 -12 Td
+(    "can_manage_hr": false,) Tj
+0 -12 Td
+(    "can_approve_leave": true,) Tj
+0 -12 Td
+(    "can_view_attendance": true,) Tj
+0 -12 Td
+(    "can_manage_payroll": false,) Tj
+0 -12 Td
+(    "level": 60) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(8. POST /api/roles/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `RoleViewSet`) Tj
+0 -12 Td
+(* Description: Create role) Tj
+0 -12 Td
+() Tj
+ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 12 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+14 0 obj
+<< /Length 2223 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "name": "MANAGER",) Tj
+0 -12 Td
+(    "slug": "manager",) Tj
+0 -12 Td
+(    "can_manage_company": false,) Tj
+0 -12 Td
+(    "can_manage_roles": false,) Tj
+0 -12 Td
+(    "can_manage_users": true,) Tj
+0 -12 Td
+(    "can_create_project": true,) Tj
+0 -12 Td
+(    "can_assign_task": true,) Tj
+0 -12 Td
+(    "can_view_all_tasks": false,) Tj
+0 -12 Td
+(    "can_view_team_tasks": true,) Tj
+0 -12 Td
+(    "can_view_assigned_tasks": true,) Tj
+0 -12 Td
+(    "can_update_task_status": true,) Tj
+0 -12 Td
+(    "can_view_project_progress": true,) Tj
+0 -12 Td
+(    "can_manage_hr": false,) Tj
+0 -12 Td
+(    "can_approve_leave": true,) Tj
+0 -12 Td
+(    "can_view_attendance": true,) Tj
+0 -12 Td
+(    "can_manage_payroll": false,) Tj
+0 -12 Td
+(    "level": 60) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "name": "MANAGER",) Tj
+0 -12 Td
+(    "slug": "manager",) Tj
+0 -12 Td
+(    "can_manage_company": false,) Tj
+0 -12 Td
+(    "can_manage_roles": false,) Tj
+0 -12 Td
+(    "can_manage_users": true,) Tj
+0 -12 Td
+(    "can_create_project": true,) Tj
+0 -12 Td
+(    "can_assign_task": true,) Tj
+0 -12 Td
+(    "can_view_all_tasks": false,) Tj
+0 -12 Td
+(    "can_view_team_tasks": true,) Tj
+0 -12 Td
+(    "can_view_assigned_tasks": true,) Tj
+0 -12 Td
+(    "can_update_task_status": true,) Tj
+0 -12 Td
+(    "can_view_project_progress": true,) Tj
+0 -12 Td
+(    "can_manage_hr": false,) Tj
+0 -12 Td
+(    "can_approve_leave": true,) Tj
+0 -12 Td
+(    "can_view_attendance": true,) Tj
+0 -12 Td
+(    "can_manage_payroll": false,) Tj
+0 -12 Td
+(    "level": 60) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(9. GET /api/roles/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `RoleViewSet`) Tj
+0 -12 Td
+(* Description: Retrieve role) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "name": "MANAGER",) Tj
+0 -12 Td
+(    "slug": "manager",) Tj
+0 -12 Td
+(    "can_manage_company": false,) Tj
+0 -12 Td
+(    "can_manage_roles": false,) Tj
+ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 14 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+16 0 obj
+<< /Length 2346 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    "can_manage_users": true,) Tj
+0 -12 Td
+(    "can_create_project": true,) Tj
+0 -12 Td
+(    "can_assign_task": true,) Tj
+0 -12 Td
+(    "can_view_all_tasks": false,) Tj
+0 -12 Td
+(    "can_view_team_tasks": true,) Tj
+0 -12 Td
+(    "can_view_assigned_tasks": true,) Tj
+0 -12 Td
+(    "can_update_task_status": true,) Tj
+0 -12 Td
+(    "can_view_project_progress": true,) Tj
+0 -12 Td
+(    "can_manage_hr": false,) Tj
+0 -12 Td
+(    "can_approve_leave": true,) Tj
+0 -12 Td
+(    "can_view_attendance": true,) Tj
+0 -12 Td
+(    "can_manage_payroll": false,) Tj
+0 -12 Td
+(    "level": 60) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(10. PUT /api/roles/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `RoleViewSet`) Tj
+0 -12 Td
+(* Description: Update role) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "name": "MANAGER",) Tj
+0 -12 Td
+(    "slug": "manager",) Tj
+0 -12 Td
+(    "can_manage_company": false,) Tj
+0 -12 Td
+(    "can_manage_roles": false,) Tj
+0 -12 Td
+(    "can_manage_users": true,) Tj
+0 -12 Td
+(    "can_create_project": true,) Tj
+0 -12 Td
+(    "can_assign_task": true,) Tj
+0 -12 Td
+(    "can_view_all_tasks": false,) Tj
+0 -12 Td
+(    "can_view_team_tasks": true,) Tj
+0 -12 Td
+(    "can_view_assigned_tasks": true,) Tj
+0 -12 Td
+(    "can_update_task_status": true,) Tj
+0 -12 Td
+(    "can_view_project_progress": true,) Tj
+0 -12 Td
+(    "can_manage_hr": false,) Tj
+0 -12 Td
+(    "can_approve_leave": true,) Tj
+0 -12 Td
+(    "can_view_attendance": true,) Tj
+0 -12 Td
+(    "can_manage_payroll": false,) Tj
+0 -12 Td
+(    "level": 60) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "name": "MANAGER",) Tj
+0 -12 Td
+(    "slug": "manager",) Tj
+0 -12 Td
+(    "can_manage_company": false,) Tj
+0 -12 Td
+(    "can_manage_roles": false,) Tj
+0 -12 Td
+(    "can_manage_users": true,) Tj
+0 -12 Td
+(    "can_create_project": true,) Tj
+0 -12 Td
+(    "can_assign_task": true,) Tj
+0 -12 Td
+(    "can_view_all_tasks": false,) Tj
+0 -12 Td
+(    "can_view_team_tasks": true,) Tj
+0 -12 Td
+(    "can_view_assigned_tasks": true,) Tj
+0 -12 Td
+(    "can_update_task_status": true,) Tj
+0 -12 Td
+(    "can_view_project_progress": true,) Tj
+ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 16 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+18 0 obj
+<< /Length 1976 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    "can_manage_hr": false,) Tj
+0 -12 Td
+(    "can_approve_leave": true,) Tj
+0 -12 Td
+(    "can_view_attendance": true,) Tj
+0 -12 Td
+(    "can_manage_payroll": false,) Tj
+0 -12 Td
+(    "level": 60) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(11. PATCH /api/roles/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `RoleViewSet`) Tj
+0 -12 Td
+(* Description: Partial update role) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "can_manage_users": true,) Tj
+0 -12 Td
+(    "can_approve_leave": true) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "name": "MANAGER",) Tj
+0 -12 Td
+(    "slug": "manager",) Tj
+0 -12 Td
+(    "can_manage_company": false,) Tj
+0 -12 Td
+(    "can_manage_roles": false,) Tj
+0 -12 Td
+(    "can_manage_users": true,) Tj
+0 -12 Td
+(    "can_create_project": true,) Tj
+0 -12 Td
+(    "can_assign_task": true,) Tj
+0 -12 Td
+(    "can_view_all_tasks": false,) Tj
+0 -12 Td
+(    "can_view_team_tasks": true,) Tj
+0 -12 Td
+(    "can_view_assigned_tasks": true,) Tj
+0 -12 Td
+(    "can_update_task_status": true,) Tj
+0 -12 Td
+(    "can_view_project_progress": true,) Tj
+0 -12 Td
+(    "can_manage_hr": false,) Tj
+0 -12 Td
+(    "can_approve_leave": true,) Tj
+0 -12 Td
+(    "can_view_attendance": true,) Tj
+0 -12 Td
+(    "can_manage_payroll": false,) Tj
+0 -12 Td
+(    "level": 60) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(12. DELETE /api/roles/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `RoleViewSet`) Tj
+0 -12 Td
+(* Description: Delete role) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {}) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(13. POST /api/register/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `RegistrationView`) Tj
+0 -12 Td
+(* Description: Register company and admin) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+ET
+endstream
+endobj
+19 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 18 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+20 0 obj
+<< /Length 1852 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    "company": {) Tj
+0 -12 Td
+(    "name": "Acme Pvt Ltd",) Tj
+0 -12 Td
+(    "email": "info@acme.com",) Tj
+0 -12 Td
+(    "phone": "9876543210",) Tj
+0 -12 Td
+(    "size": "50-100",) Tj
+0 -12 Td
+(    "address": "Jaipur",) Tj
+0 -12 Td
+(    "logo": null) Tj
+0 -12 Td
+(    },) Tj
+0 -12 Td
+(    "owner_name": "Acme Owner",) Tj
+0 -12 Td
+(    "owner_email": "owner@acme.com",) Tj
+0 -12 Td
+(    "password": "Secret123") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "success": true,) Tj
+0 -12 Td
+(    "message": "Company and Admin registered successfully.") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(14. POST /api/create-user/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `CreateUserView`) Tj
+0 -12 Td
+(* Description: Create user and send invite) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "company_id": 1,) Tj
+0 -12 Td
+(    "first_name": "Rahul",) Tj
+0 -12 Td
+(    "email": "rahul@acme.com",) Tj
+0 -12 Td
+(    "role_id": 3) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "success": true,) Tj
+0 -12 Td
+(    "message": "Invite sent successfully",) Tj
+0 -12 Td
+(    "invite_token": "uuid-token-value") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(15. PATCH /api/update-user/{user_id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `UpdateUserView`) Tj
+0 -12 Td
+(* Description: Update company user) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "role": 3,) Tj
+0 -12 Td
+(    "status": "ACTIVE") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 9,) Tj
+0 -12 Td
+(    "name": "Rahul Sharma",) Tj
+ET
+endstream
+endobj
+21 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 20 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+22 0 obj
+<< /Length 2019 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    "email": "rahul@acme.com",) Tj
+0 -12 Td
+(    "role": "MANAGER",) Tj
+0 -12 Td
+(    "level": 60,) Tj
+0 -12 Td
+(    "status": "ACTIVE") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(16. DELETE /api/delete-user/{user_id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `DeleteUserView`) Tj
+0 -12 Td
+(* Description: Delete company user) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "success": true,) Tj
+0 -12 Td
+(    "message": "User deleted successfully") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(17. POST /api/set-password/{token}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `SetPasswordView`) Tj
+0 -12 Td
+(* Description: Set invited user's password) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "password": "Secret12345",) Tj
+0 -12 Td
+(    "confirm_password": "Secret12345") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "message": "Password set successfully") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(18. GET /api/current-user/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `CurrentUserView`) Tj
+0 -12 Td
+(* Description: Get current logged-in company user) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 5,) Tj
+0 -12 Td
+(    "name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "email": "rahul@acme.com",) Tj
+0 -12 Td
+(    "role": "MANAGER",) Tj
+0 -12 Td
+(    "level": 60,) Tj
+0 -12 Td
+(    "permissions": {) Tj
+0 -12 Td
+(    "can_manage_company": false,) Tj
+0 -12 Td
+(    "can_manage_roles": false,) Tj
+0 -12 Td
+(    "can_manage_users": true,) Tj
+0 -12 Td
+(    "can_create_project": true,) Tj
+0 -12 Td
+(    "can_assign_task": true,) Tj
+0 -12 Td
+(    "can_view_all_tasks": false,) Tj
+0 -12 Td
+(    "can_view_team_tasks": true,) Tj
+0 -12 Td
+(    "can_view_assigned_tasks": true,) Tj
+0 -12 Td
+(    "can_update_task_status": true,) Tj
+0 -12 Td
+(    "can_view_project_progress": true,) Tj
+ET
+endstream
+endobj
+23 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 22 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+24 0 obj
+<< /Length 1998 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    "can_manage_hr": false,) Tj
+0 -12 Td
+(    "can_approve_leave": true,) Tj
+0 -12 Td
+(    "can_view_attendance": true,) Tj
+0 -12 Td
+(    "can_manage_payroll": false) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Dashboard) Tj
+0 -12 Td
+(---------) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(1. GET /api/overview/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `DashboardOverviewAPI`) Tj
+0 -12 Td
+(* Description: Company overview metrics) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "total_clients": 12,) Tj
+0 -12 Td
+(    "total_employees": 25,) Tj
+0 -12 Td
+(    "total_projects": 14,) Tj
+0 -12 Td
+(    "total_tasks": 120,) Tj
+0 -12 Td
+(    "completed_tasks": 78,) Tj
+0 -12 Td
+(    "pending_tasks": 42,) Tj
+0 -12 Td
+(    "completion_rate": 65.0,) Tj
+0 -12 Td
+(    "overdue_tasks": 5) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(2. GET /api/my-tasks/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `MyTasksAPI`) Tj
+0 -12 Td
+(* Description: Get current user's tasks) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 21,) Tj
+0 -12 Td
+(    "title": "Create login UI",) Tj
+0 -12 Td
+(    "description": "Build login page",) Tj
+0 -12 Td
+(    "assigned_to": 9,) Tj
+0 -12 Td
+(    "assigned_to_name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "created_by": 5,) Tj
+0 -12 Td
+(    "created_by_name": "Manager One",) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "status": "IN_PROGRESS",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "due_date": "2026-04-10",) Tj
+0 -12 Td
+(    "attachment": null,) Tj
+0 -12 Td
+(    "image": null,) Tj
+0 -12 Td
+(    "reference_link": "https://example.com/spec",) Tj
+0 -12 Td
+(    "progress": 60,) Tj
+0 -12 Td
+(    "created_at": "2026-03-28T12:30:00Z",) Tj
+0 -12 Td
+(    "project": 3) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(3. GET /api/my-projects/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `MyProjectsAPI`) Tj
+ET
+endstream
+endobj
+25 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 24 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+26 0 obj
+<< /Length 1857 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(* Description: Get current user's projects) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "name": "HRMS Platform",) Tj
+0 -12 Td
+(    "status": "ACTIVE",) Tj
+0 -12 Td
+(    "progress": 70,) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "start_date": "2026-03-01",) Tj
+0 -12 Td
+(    "end_date": "2026-06-30") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(4. GET /api/users/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `UserListAPI`) Tj
+0 -12 Td
+(* Description: List company users) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 5,) Tj
+0 -12 Td
+(    "name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "email": "rahul@acme.com",) Tj
+0 -12 Td
+(    "role": "MANAGER",) Tj
+0 -12 Td
+(    "level": 60,) Tj
+0 -12 Td
+(    "status": "ACTIVE") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(5. GET /api/my-leaves/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `MyLeaveListAPI`) Tj
+0 -12 Td
+(* Description: Get current user's leave requests) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 12,) Tj
+0 -12 Td
+(    "company_user_id": 9,) Tj
+0 -12 Td
+(    "employee_name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "employee_role": "EMPLOYEE",) Tj
+0 -12 Td
+(    "start_date": "2026-04-02",) Tj
+0 -12 Td
+(    "end_date": "2026-04-04",) Tj
+0 -12 Td
+(    "reason": "Medical leave",) Tj
+0 -12 Td
+(    "status": "PENDING",) Tj
+0 -12 Td
+(    "applied_on": "2026-03-30T09:00:00Z") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(6. GET /api/all-tasks/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `AllTasksAPI`) Tj
+0 -12 Td
+(* Description: Get all visible tasks) Tj
+0 -12 Td
+() Tj
+ET
+endstream
+endobj
+27 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 26 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+28 0 obj
+<< /Length 1999 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 21,) Tj
+0 -12 Td
+(    "title": "Create login UI",) Tj
+0 -12 Td
+(    "description": "Build login page",) Tj
+0 -12 Td
+(    "assigned_to": 9,) Tj
+0 -12 Td
+(    "assigned_to_name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "created_by": 5,) Tj
+0 -12 Td
+(    "created_by_name": "Manager One",) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "status": "IN_PROGRESS",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "due_date": "2026-04-10",) Tj
+0 -12 Td
+(    "attachment": null,) Tj
+0 -12 Td
+(    "image": null,) Tj
+0 -12 Td
+(    "reference_link": "https://example.com/spec",) Tj
+0 -12 Td
+(    "progress": 60,) Tj
+0 -12 Td
+(    "created_at": "2026-03-28T12:30:00Z",) Tj
+0 -12 Td
+(    "project": 3) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(7. GET /api/task-analytics/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `TaskAnalyticsAPI`) Tj
+0 -12 Td
+(* Description: Get task analytics) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "total_tasks": 120,) Tj
+0 -12 Td
+(    "completed_tasks": 78,) Tj
+0 -12 Td
+(    "overdue_tasks": 5) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(8. GET /api/team-leaves/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `TeamLeaveListAPI`) Tj
+0 -12 Td
+(* Description: Get team leave requests) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 12,) Tj
+0 -12 Td
+(    "company_user_id": 9,) Tj
+0 -12 Td
+(    "employee_name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "employee_role": "EMPLOYEE",) Tj
+0 -12 Td
+(    "start_date": "2026-04-02",) Tj
+0 -12 Td
+(    "end_date": "2026-04-04",) Tj
+0 -12 Td
+(    "reason": "Medical leave",) Tj
+0 -12 Td
+(    "status": "PENDING",) Tj
+0 -12 Td
+(    "applied_on": "2026-03-30T09:00:00Z") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(9. GET /api/all-projects/) Tj
+0 -12 Td
+() Tj
+ET
+endstream
+endobj
+29 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 28 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+30 0 obj
+<< /Length 1907 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(* View: `AllProjectsAPI`) Tj
+0 -12 Td
+(* Description: List company projects) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "name": "HRMS Platform",) Tj
+0 -12 Td
+(    "status": "ACTIVE",) Tj
+0 -12 Td
+(    "progress": 70,) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "start_date": "2026-03-01",) Tj
+0 -12 Td
+(    "end_date": "2026-06-30") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(10. GET /api/client-projects/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `ClientProjectsProgressAPI`) Tj
+0 -12 Td
+(* Description: Get client project progress) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "name": "HRMS Platform",) Tj
+0 -12 Td
+(    "progress": 70,) Tj
+0 -12 Td
+(    "status": "ACTIVE",) Tj
+0 -12 Td
+(    "start_date": "2026-03-01",) Tj
+0 -12 Td
+(    "end_date": "2026-06-30",) Tj
+0 -12 Td
+(    "budget": "250000.00",) Tj
+0 -12 Td
+(    "actual_cost": "140000.00") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(11. GET /api/manager-projects/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `ManagerProjectsAPI`) Tj
+0 -12 Td
+(* Description: Get manager's projects) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "name": "HRMS Platform",) Tj
+0 -12 Td
+(    "status": "ACTIVE",) Tj
+0 -12 Td
+(    "progress": 70,) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "start_date": "2026-03-01",) Tj
+0 -12 Td
+(    "end_date": "2026-06-30") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(12. GET /api/manager-overview/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `ManagerOverviewAPI`) Tj
+0 -12 Td
+(* Description: Get manager dashboard overview) Tj
+ET
+endstream
+endobj
+31 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 30 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+32 0 obj
+<< /Length 1871 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "total_projects": 6,) Tj
+0 -12 Td
+(    "total_tasks": 32,) Tj
+0 -12 Td
+(    "completed_tasks": 18,) Tj
+0 -12 Td
+(    "pending_tasks": 7,) Tj
+0 -12 Td
+(    "in_progress_tasks": 7,) Tj
+0 -12 Td
+(    "overdue_tasks": 2) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(HR) Tj
+0 -12 Td
+(--) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(1. GET /api/profile/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `MyProfileAPI`) Tj
+0 -12 Td
+(* Description: Get employee profile) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 4,) Tj
+0 -12 Td
+(    "department": {) Tj
+0 -12 Td
+(    "id": 2,) Tj
+0 -12 Td
+(    "name": "Engineering",) Tj
+0 -12 Td
+(    "description": "Product engineering department") Tj
+0 -12 Td
+(    },) Tj
+0 -12 Td
+(    "designation": "Frontend Developer",) Tj
+0 -12 Td
+(    "date_joined": "2025-12-01",) Tj
+0 -12 Td
+(    "salary": "65000.00",) Tj
+0 -12 Td
+(    "phone": "9876543210",) Tj
+0 -12 Td
+(    "address": "Jaipur") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(2. PUT /api/profile/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `MyProfileAPI`) Tj
+0 -12 Td
+(* Description: Update employee profile) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "department_id": 2,) Tj
+0 -12 Td
+(    "designation": "Frontend Developer",) Tj
+0 -12 Td
+(    "date_joined": "2025-12-01",) Tj
+0 -12 Td
+(    "salary": "65000.00",) Tj
+0 -12 Td
+(    "phone": "9876543210",) Tj
+0 -12 Td
+(    "address": "Jaipur") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 4,) Tj
+0 -12 Td
+(    "department": {) Tj
+0 -12 Td
+(    "id": 2,) Tj
+0 -12 Td
+(    "name": "Engineering",) Tj
+0 -12 Td
+(    "description": "Product engineering department") Tj
+ET
+endstream
+endobj
+33 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 32 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+34 0 obj
+<< /Length 1904 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    },) Tj
+0 -12 Td
+(    "designation": "Frontend Developer",) Tj
+0 -12 Td
+(    "date_joined": "2025-12-01",) Tj
+0 -12 Td
+(    "salary": "65000.00",) Tj
+0 -12 Td
+(    "phone": "9876543210",) Tj
+0 -12 Td
+(    "address": "Jaipur") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(3. GET /api/departments/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `DepartmentListCreateAPI`) Tj
+0 -12 Td
+(* Description: List departments) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 2,) Tj
+0 -12 Td
+(    "name": "Engineering",) Tj
+0 -12 Td
+(    "description": "Product engineering department") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(4. POST /api/departments/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `DepartmentListCreateAPI`) Tj
+0 -12 Td
+(* Description: Create department) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "name": "Engineering",) Tj
+0 -12 Td
+(    "description": "Product engineering department") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 2,) Tj
+0 -12 Td
+(    "name": "Engineering",) Tj
+0 -12 Td
+(    "description": "Product engineering department") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(5. GET /api/attendance/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `MyAttendanceAPI`) Tj
+0 -12 Td
+(* Description: Get attendance records) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 11,) Tj
+0 -12 Td
+(    "company_user_id": 9,) Tj
+0 -12 Td
+(    "employee_name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "employee_role": "EMPLOYEE",) Tj
+0 -12 Td
+(    "date": "2026-03-30",) Tj
+0 -12 Td
+(    "check_in": "09:15:00",) Tj
+0 -12 Td
+(    "check_out": "18:05:00",) Tj
+0 -12 Td
+(    "status": "PRESENT") Tj
+ET
+endstream
+endobj
+35 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 34 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+36 0 obj
+<< /Length 1879 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(6. PATCH /api/leave/{leave_id}/status/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `UpdateLeaveStatusAPI`) Tj
+0 -12 Td
+(* Description: Update leave status) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "status": "APPROVED") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 12,) Tj
+0 -12 Td
+(    "company_user_id": 9,) Tj
+0 -12 Td
+(    "employee_name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "employee_role": "EMPLOYEE",) Tj
+0 -12 Td
+(    "start_date": "2026-04-02",) Tj
+0 -12 Td
+(    "end_date": "2026-04-04",) Tj
+0 -12 Td
+(    "reason": "Medical leave",) Tj
+0 -12 Td
+(    "status": "APPROVED",) Tj
+0 -12 Td
+(    "applied_on": "2026-03-30T09:00:00Z") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(7. POST /api/review/{employee_id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `AddPerformanceReviewAPI`) Tj
+0 -12 Td
+(* Description: Add performance review) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "rating": 4,) Tj
+0 -12 Td
+(    "feedback": "Consistent performer with strong ownership.") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 6,) Tj
+0 -12 Td
+(    "rating": 4,) Tj
+0 -12 Td
+(    "feedback": "Consistent performer with strong ownership.",) Tj
+0 -12 Td
+(    "review_date": "2026-03-30") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(8. GET /api/hr-dashboard/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `HRDashboardAPI`) Tj
+0 -12 Td
+(* Description: Get HR dashboard overview) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "total_employees": 25,) Tj
+0 -12 Td
+(    "attendance": {) Tj
+0 -12 Td
+(    "present": 20,) Tj
+ET
+endstream
+endobj
+37 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 36 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+38 0 obj
+<< /Length 1961 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    "absent": 2,) Tj
+0 -12 Td
+(    "half_day": 1,) Tj
+0 -12 Td
+(    "on_leave": 2,) Tj
+0 -12 Td
+(    "attendance_percentage": 80) Tj
+0 -12 Td
+(    },) Tj
+0 -12 Td
+(    "leave_summary": {) Tj
+0 -12 Td
+(    "approved": 6,) Tj
+0 -12 Td
+(    "pending": 3,) Tj
+0 -12 Td
+(    "rejected": 1) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Projects) Tj
+0 -12 Td
+(--------) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(1. GET /api/projects/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `ProjectViewSet`) Tj
+0 -12 Td
+(* Description: List projects) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "client": 14,) Tj
+0 -12 Td
+(    "manager": 5,) Tj
+0 -12 Td
+(    "name": "HRMS Platform",) Tj
+0 -12 Td
+(    "description": "Internal HR management system",) Tj
+0 -12 Td
+(    "status": "ACTIVE",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "start_date": "2026-03-01",) Tj
+0 -12 Td
+(    "end_date": "2026-06-30",) Tj
+0 -12 Td
+(    "budget": "250000.00",) Tj
+0 -12 Td
+(    "actual_cost": "140000.00",) Tj
+0 -12 Td
+(    "progress": 70,) Tj
+0 -12 Td
+(    "is_active": true,) Tj
+0 -12 Td
+(    "created_at": "2026-03-01T10:00:00Z") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(2. POST /api/projects/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `ProjectViewSet`) Tj
+0 -12 Td
+(* Description: Create project) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "client": 14,) Tj
+0 -12 Td
+(    "manager": 5,) Tj
+0 -12 Td
+(    "name": "HRMS Platform",) Tj
+0 -12 Td
+(    "description": "Internal HR management system",) Tj
+0 -12 Td
+(    "status": "ACTIVE",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "start_date": "2026-03-01",) Tj
+0 -12 Td
+(    "end_date": "2026-06-30",) Tj
+0 -12 Td
+(    "budget": "250000.00",) Tj
+0 -12 Td
+(    "actual_cost": "0.00",) Tj
+ET
+endstream
+endobj
+39 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 38 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+40 0 obj
+<< /Length 2054 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    "is_active": true) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "client": 14,) Tj
+0 -12 Td
+(    "manager": 5,) Tj
+0 -12 Td
+(    "name": "HRMS Platform",) Tj
+0 -12 Td
+(    "description": "Internal HR management system",) Tj
+0 -12 Td
+(    "status": "ACTIVE",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "start_date": "2026-03-01",) Tj
+0 -12 Td
+(    "end_date": "2026-06-30",) Tj
+0 -12 Td
+(    "budget": "250000.00",) Tj
+0 -12 Td
+(    "actual_cost": "0.00",) Tj
+0 -12 Td
+(    "progress": 0,) Tj
+0 -12 Td
+(    "is_active": true,) Tj
+0 -12 Td
+(    "created_at": "2026-03-01T10:00:00Z") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(3. GET /api/projects/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `ProjectViewSet`) Tj
+0 -12 Td
+(* Description: Retrieve project) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "client": 14,) Tj
+0 -12 Td
+(    "manager": 5,) Tj
+0 -12 Td
+(    "name": "HRMS Platform",) Tj
+0 -12 Td
+(    "description": "Internal HR management system",) Tj
+0 -12 Td
+(    "status": "ACTIVE",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "start_date": "2026-03-01",) Tj
+0 -12 Td
+(    "end_date": "2026-06-30",) Tj
+0 -12 Td
+(    "budget": "250000.00",) Tj
+0 -12 Td
+(    "actual_cost": "140000.00",) Tj
+0 -12 Td
+(    "progress": 70,) Tj
+0 -12 Td
+(    "is_active": true,) Tj
+0 -12 Td
+(    "created_at": "2026-03-01T10:00:00Z") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(4. PUT /api/projects/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `ProjectViewSet`) Tj
+0 -12 Td
+(* Description: Update project) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "client": 14,) Tj
+0 -12 Td
+(    "manager": 5,) Tj
+0 -12 Td
+(    "name": "HRMS Platform",) Tj
+0 -12 Td
+(    "description": "Internal HR management system updated",) Tj
+ET
+endstream
+endobj
+41 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 40 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+42 0 obj
+<< /Length 2095 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    "status": "ACTIVE",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "start_date": "2026-03-01",) Tj
+0 -12 Td
+(    "end_date": "2026-07-15",) Tj
+0 -12 Td
+(    "budget": "250000.00",) Tj
+0 -12 Td
+(    "actual_cost": "160000.00",) Tj
+0 -12 Td
+(    "is_active": true) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "client": 14,) Tj
+0 -12 Td
+(    "manager": 5,) Tj
+0 -12 Td
+(    "name": "HRMS Platform",) Tj
+0 -12 Td
+(    "description": "Internal HR management system updated",) Tj
+0 -12 Td
+(    "status": "ACTIVE",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "start_date": "2026-03-01",) Tj
+0 -12 Td
+(    "end_date": "2026-07-15",) Tj
+0 -12 Td
+(    "budget": "250000.00",) Tj
+0 -12 Td
+(    "actual_cost": "160000.00",) Tj
+0 -12 Td
+(    "progress": 70,) Tj
+0 -12 Td
+(    "is_active": true,) Tj
+0 -12 Td
+(    "created_at": "2026-03-01T10:00:00Z") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(5. PATCH /api/projects/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `ProjectViewSet`) Tj
+0 -12 Td
+(* Description: Partial update project) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "status": "ON_HOLD",) Tj
+0 -12 Td
+(    "priority": "MEDIUM") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 3,) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "client": 14,) Tj
+0 -12 Td
+(    "manager": 5,) Tj
+0 -12 Td
+(    "name": "HRMS Platform",) Tj
+0 -12 Td
+(    "description": "Internal HR management system",) Tj
+0 -12 Td
+(    "status": "ON_HOLD",) Tj
+0 -12 Td
+(    "priority": "MEDIUM",) Tj
+0 -12 Td
+(    "start_date": "2026-03-01",) Tj
+0 -12 Td
+(    "end_date": "2026-06-30",) Tj
+0 -12 Td
+(    "budget": "250000.00",) Tj
+0 -12 Td
+(    "actual_cost": "140000.00",) Tj
+0 -12 Td
+(    "progress": 70,) Tj
+0 -12 Td
+(    "is_active": true,) Tj
+0 -12 Td
+(    "created_at": "2026-03-01T10:00:00Z") Tj
+0 -12 Td
+(    }) Tj
+ET
+endstream
+endobj
+43 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 42 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+44 0 obj
+<< /Length 1695 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+() Tj
+0 -12 Td
+(6. DELETE /api/projects/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `ProjectViewSet`) Tj
+0 -12 Td
+(* Description: Delete project) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {}) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(7. PATCH /api/projects/{id}/assign_client/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `ProjectViewSet.assign_client`) Tj
+0 -12 Td
+(* Description: Assign client to project) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "client": 14) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "message": "Client assigned successfully") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(8. PATCH /api/projects/{id}/deactivate/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `ProjectViewSet.deactivate`) Tj
+0 -12 Td
+(* Description: Soft deactivate project) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {}) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "message": "Project deactivated") Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Tasks) Tj
+0 -12 Td
+(-----) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(1. GET /api/tasks/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `TaskViewSet`) Tj
+0 -12 Td
+(* Description: List tasks) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    [) Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 21,) Tj
+0 -12 Td
+(    "title": "Create login UI",) Tj
+0 -12 Td
+(    "description": "Build login page",) Tj
+0 -12 Td
+(    "assigned_to": 9,) Tj
+0 -12 Td
+(    "assigned_to_name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "created_by": 5,) Tj
+ET
+endstream
+endobj
+45 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 44 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+46 0 obj
+<< /Length 2121 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    "created_by_name": "Manager One",) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "status": "IN_PROGRESS",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "due_date": "2026-04-10",) Tj
+0 -12 Td
+(    "attachment": null,) Tj
+0 -12 Td
+(    "image": null,) Tj
+0 -12 Td
+(    "reference_link": "https://example.com/spec",) Tj
+0 -12 Td
+(    "progress": 60,) Tj
+0 -12 Td
+(    "created_at": "2026-03-28T12:30:00Z",) Tj
+0 -12 Td
+(    "project": 3) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+(    ]) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(2. POST /api/tasks/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `TaskViewSet`) Tj
+0 -12 Td
+(* Description: Create task) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "title": "Create login UI",) Tj
+0 -12 Td
+(    "description": "Build login page",) Tj
+0 -12 Td
+(    "assigned_to": 9,) Tj
+0 -12 Td
+(    "status": "PENDING",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "due_date": "2026-04-10",) Tj
+0 -12 Td
+(    "attachment": null,) Tj
+0 -12 Td
+(    "image": null,) Tj
+0 -12 Td
+(    "reference_link": "https://example.com/spec",) Tj
+0 -12 Td
+(    "project": 3) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 21,) Tj
+0 -12 Td
+(    "title": "Create login UI",) Tj
+0 -12 Td
+(    "description": "Build login page",) Tj
+0 -12 Td
+(    "assigned_to": 9,) Tj
+0 -12 Td
+(    "assigned_to_name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "created_by": 5,) Tj
+0 -12 Td
+(    "created_by_name": "Manager One",) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "status": "PENDING",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "due_date": "2026-04-10",) Tj
+0 -12 Td
+(    "attachment": null,) Tj
+0 -12 Td
+(    "image": null,) Tj
+0 -12 Td
+(    "reference_link": "https://example.com/spec",) Tj
+0 -12 Td
+(    "created_at": "2026-03-28T12:30:00Z",) Tj
+0 -12 Td
+(    "project": 3) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(3. GET /api/tasks/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `TaskViewSet`) Tj
+0 -12 Td
+(* Description: Retrieve task) Tj
+0 -12 Td
+() Tj
+ET
+endstream
+endobj
+47 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 46 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+48 0 obj
+<< /Length 2234 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 21,) Tj
+0 -12 Td
+(    "title": "Create login UI",) Tj
+0 -12 Td
+(    "description": "Build login page",) Tj
+0 -12 Td
+(    "assigned_to": 9,) Tj
+0 -12 Td
+(    "assigned_to_name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "created_by": 5,) Tj
+0 -12 Td
+(    "created_by_name": "Manager One",) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "status": "IN_PROGRESS",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "due_date": "2026-04-10",) Tj
+0 -12 Td
+(    "attachment": null,) Tj
+0 -12 Td
+(    "image": null,) Tj
+0 -12 Td
+(    "reference_link": "https://example.com/spec",) Tj
+0 -12 Td
+(    "progress": 60,) Tj
+0 -12 Td
+(    "created_at": "2026-03-28T12:30:00Z",) Tj
+0 -12 Td
+(    "project": 3) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(4. PUT /api/tasks/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `TaskViewSet`) Tj
+0 -12 Td
+(* Description: Update task) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "title": "Create login UI",) Tj
+0 -12 Td
+(    "description": "Build login page with OTP support",) Tj
+0 -12 Td
+(    "assigned_to": 9,) Tj
+0 -12 Td
+(    "status": "IN_PROGRESS",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "due_date": "2026-04-12",) Tj
+0 -12 Td
+(    "attachment": null,) Tj
+0 -12 Td
+(    "image": null,) Tj
+0 -12 Td
+(    "reference_link": "https://example.com/spec-v2",) Tj
+0 -12 Td
+(    "progress": 60,) Tj
+0 -12 Td
+(    "project": 3) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 21,) Tj
+0 -12 Td
+(    "title": "Create login UI",) Tj
+0 -12 Td
+(    "description": "Build login page with OTP support",) Tj
+0 -12 Td
+(    "assigned_to": 9,) Tj
+0 -12 Td
+(    "assigned_to_name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "created_by": 5,) Tj
+0 -12 Td
+(    "created_by_name": "Manager One",) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "status": "IN_PROGRESS",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "due_date": "2026-04-12",) Tj
+0 -12 Td
+(    "attachment": null,) Tj
+0 -12 Td
+(    "image": null,) Tj
+0 -12 Td
+(    "reference_link": "https://example.com/spec-v2",) Tj
+ET
+endstream
+endobj
+49 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 48 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+50 0 obj
+<< /Length 1527 >>
+stream
+BT
+/F1 9 Tf
+40 800 Td
+(    "progress": 60,) Tj
+0 -12 Td
+(    "created_at": "2026-03-28T12:30:00Z",) Tj
+0 -12 Td
+(    "project": 3) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(5. PATCH /api/tasks/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `TaskViewSet`) Tj
+0 -12 Td
+(* Description: Partial update task) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Request JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "status": "COMPLETED",) Tj
+0 -12 Td
+(    "progress": 100) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {) Tj
+0 -12 Td
+(    "id": 21,) Tj
+0 -12 Td
+(    "title": "Create login UI",) Tj
+0 -12 Td
+(    "description": "Build login page",) Tj
+0 -12 Td
+(    "assigned_to": 9,) Tj
+0 -12 Td
+(    "assigned_to_name": "Rahul Sharma",) Tj
+0 -12 Td
+(    "created_by": 5,) Tj
+0 -12 Td
+(    "created_by_name": "Manager One",) Tj
+0 -12 Td
+(    "company": 1,) Tj
+0 -12 Td
+(    "status": "COMPLETED",) Tj
+0 -12 Td
+(    "priority": "HIGH",) Tj
+0 -12 Td
+(    "due_date": "2026-04-10",) Tj
+0 -12 Td
+(    "attachment": null,) Tj
+0 -12 Td
+(    "image": null,) Tj
+0 -12 Td
+(    "reference_link": "https://example.com/spec",) Tj
+0 -12 Td
+(    "progress": 100,) Tj
+0 -12 Td
+(    "created_at": "2026-03-28T12:30:00Z",) Tj
+0 -12 Td
+(    "project": 3) Tj
+0 -12 Td
+(    }) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(6. DELETE /api/tasks/{id}/) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(* View: `TaskViewSet`) Tj
+0 -12 Td
+(* Description: Delete task) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(Response JSON:) Tj
+0 -12 Td
+() Tj
+0 -12 Td
+(    {}) Tj
+ET
+endstream
+endobj
+51 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 50 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+xref
+0 52
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000275 00000 n 
+0000000345 00000 n 
+0000002377 00000 n 
+0000002503 00000 n 
+0000004341 00000 n 
+0000004467 00000 n 
+0000006319 00000 n 
+0000006445 00000 n 
+0000008383 00000 n 
+0000008511 00000 n 
+0000010497 00000 n 
+0000010625 00000 n 
+0000012901 00000 n 
+0000013029 00000 n 
+0000015428 00000 n 
+0000015556 00000 n 
+0000017585 00000 n 
+0000017713 00000 n 
+0000019618 00000 n 
+0000019746 00000 n 
+0000021818 00000 n 
+0000021946 00000 n 
+0000023997 00000 n 
+0000024125 00000 n 
+0000026035 00000 n 
+0000026163 00000 n 
+0000028215 00000 n 
+0000028343 00000 n 
+0000030303 00000 n 
+0000030431 00000 n 
+0000032355 00000 n 
+0000032483 00000 n 
+0000034440 00000 n 
+0000034568 00000 n 
+0000036500 00000 n 
+0000036628 00000 n 
+0000038642 00000 n 
+0000038770 00000 n 
+0000040877 00000 n 
+0000041005 00000 n 
+0000043153 00000 n 
+0000043281 00000 n 
+0000045029 00000 n 
+0000045157 00000 n 
+0000047331 00000 n 
+0000047459 00000 n 
+0000049746 00000 n 
+0000049874 00000 n 
+0000051454 00000 n 
+trailer
+<< /Size 52 /Root 1 0 R >>
+startxref
+51582
+%%EOF

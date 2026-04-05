@@ -1,0 +1,5 @@
+abb main tumhe btati hoon mujhe frontend mein chahiye kya kya aur kaise toh uske hisaab se ek new file bana dena jisme apis mention ho acc to my requirements
+ek home page ha jispr login and sign up(register) buttons ha then after register and login, we move to the desired dashboard
+agar uski permission ha can manage company toh open krdo owner ka dashboard jispr following pages and unke parts ho
+1. analytics - all the company analytics, count of employee, projects, tasks, clients and graphs for analytics then some recent activity tabs
+2. 
