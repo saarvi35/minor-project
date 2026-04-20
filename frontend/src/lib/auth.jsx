@@ -3,7 +3,7 @@ import { createContext, useContext, useMemo, useState } from "react";
 const ACCESS_TOKEN_KEY = "workhub_access_token";
 const REFRESH_TOKEN_KEY = "workhub_refresh_token";
 const USER_KEY = "workhub_user";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://workbridge-smart-enterprise-platform1.onrender.com/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 const AuthContext = createContext(null);
 

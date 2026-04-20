@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import DataTable from "../components/DataTable";
 import StatusPill from "../components/StatusPill";
 import { deleteData, getData, patchData, postData, putData } from "../lib/api";
@@ -8,12 +7,12 @@ import logo from "./logo.png";
 
 const MENUS = {
   owner: [
-    { id: "owner-dashboard", label: "Dashboard" },
+    { id: "owner-dashboard", label: "Analytics" },
     { id: "owner-roles", label: "Roles" },
     { id: "owner-users", label: "Users" },
     { id: "owner-projects", label: "Projects" },
-    { id: "owner-tasks", label: "Tasks & Analytics" },
-    { id: "owner-company", label: "Company Settings" }
+    { id: "owner-tasks", label: "Tasks" },
+    { id: "owner-company", label: "Settings" }
   ],
   manager: [
     { id: "manager-dashboard", label: "Dashboard" },
@@ -146,12 +145,6 @@ function extractError(err) {
     return JSON.stringify(err.response.data);
   }
   return err?.message || "Request failed";
-}
-
-function makeInviteLink(inviteToken) {
-  if (!inviteToken) return "";
-  const appBase = import.meta.env.VITE_APP_BASE_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:5173");
-  return `${appBase.replace(/\/$/, "")}/set-password/${inviteToken}`;
 }
 
 function getEntityId(value) {
@@ -347,10 +340,133 @@ function canAccessMenu(roleType, menuId, permissions) {
   return true;
 }
 
+function parseProgressValue(value) {
+  if (value === null || value === undefined) return 0;
+  const raw = String(value).replace("%", "").split("(")[0].trim();
+  const parsed = Number(raw);
+  if (Number.isNaN(parsed)) return 0;
+  return Math.max(0, Math.min(100, parsed));
+}
+
+function formatTimeAgo(input) {
+  const parsed = new Date(input);
+  if (Number.isNaN(parsed.getTime())) return "-";
+
+  const diffMs = Date.now() - parsed.getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "yesterday";
+  return `${days}d ago`;
+}
+
+function getLocalDateKey(input = new Date()) {
+  const value = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(value.getTime())) return "";
+
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getMonthStart(input) {
+  return new Date(input.getFullYear(), input.getMonth(), 1);
+}
+
+function addCalendarMonths(input, monthOffset) {
+  return new Date(input.getFullYear(), input.getMonth() + monthOffset, 1);
+}
+
+function buildCalendarDays(monthDate) {
+  const start = getMonthStart(monthDate);
+  const startWeekday = start.getDay();
+  const totalDays = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+  const cells = [];
+
+  for (let offset = 0; offset < startWeekday; offset += 1) {
+    cells.push(null);
+  }
+
+  for (let day = 1; day <= totalDays; day += 1) {
+    cells.push(new Date(monthDate.getFullYear(), monthDate.getMonth(), day));
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+
+  return cells;
+}
+
+function groupTasksByProject(tasks) {
+  const groups = {};
+  for (const task of toArray(tasks)) {
+    const projectId = String(getEntityId(task?.project) || "no-project");
+    const projectName =
+      String(task?.project_name || (task?.project && typeof task.project === "object" ? task.project?.name : "") || "").trim()
+      || (projectId === "no-project" ? "General Tasks" : `Project ${projectId}`);
+    if (!groups[projectId]) groups[projectId] = { projectId, projectName, tasks: [] };
+    groups[projectId].tasks.push(task);
+  }
+
+  return Object.values(groups).map((group) => ({
+    ...group,
+    tasks: group.tasks.sort((a, b) => String(a?.due_date || "").localeCompare(String(b?.due_date || "")))
+  }));
+}
+
+function humanizeDetailLabel(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "-";
+  return text
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatDetailValue(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+}
+
+function DashboardModal({ open, title, onClose, children, maxWidth = "max-w-3xl" }) {
+  if (!open) return null;
+
+  return (
+    <div className="owner-modal fixed inset-0 z-[130] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <button type="button" className="absolute inset-0 h-full w-full cursor-default bg-black/45" onClick={onClose} />
+      <div className={`owner-modal-card relative w-full ${maxWidth} max-h-[90vh] overflow-auto rounded-2xl border p-5 md:p-6`}>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-xl font-extrabold text-slate-900" style={{ fontFamily: "'Georgia', serif" }}>{title}</h3>
+          <button type="button" className="rounded-lg border px-3 py-1.5 text-sm font-semibold" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function StatCard({ label, value, accent }) {
   const color = accent || "#1d4ed8";
   return (
-    <article className="rounded-2xl p-4" style={{ background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)", border: "1px solid #d9e3f2", borderLeft: `4px solid ${color}`, position: "relative", overflow: "hidden", boxShadow: "0 14px 30px rgba(15, 23, 42, 0.05)" }}>
+    <article className="owner-stat-card rounded-2xl p-4" style={{ "--stat-accent": color, background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)", border: "1px solid #d9e3f2", borderLeft: `4px solid ${color}`, position: "relative", overflow: "hidden", boxShadow: "0 14px 30px rgba(15, 23, 42, 0.05)" }}>
       <div style={{ position: "absolute", top: -12, right: -12, width: 48, height: 48, borderRadius: "50%", background: color + "14", pointerEvents: "none" }} />
       <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "#5b728d" }}>{label}</p>
       <p className="mt-2 text-3xl font-extrabold" style={{ fontFamily: "'Georgia', serif", color }}>{value ?? 0}</p>
@@ -360,10 +476,98 @@ function StatCard({ label, value, accent }) {
 
 function SectionTitle({ title }) {
   return (
-    <header className="mb-4 flex items-center gap-2.5">
-      <span className="inline-block h-4 w-1 rounded-full" style={{ background: "linear-gradient(180deg, #3ecf8e, #4b9ef5)" }} />
-      <h2 className="text-xl font-extrabold" style={{ fontFamily: "'Georgia', serif", letterSpacing: "-0.01em", color: "#16304f" }}>{title}</h2>
+    <header className="owner-section-title mb-4 flex items-center gap-2.5">
+      <span className="owner-section-title-bar inline-block h-4 w-1 rounded-full" style={{ background: "linear-gradient(180deg, #3ecf8e, #4b9ef5)" }} />
+      <h2 className="owner-section-title-text text-xl font-extrabold" style={{ fontFamily: "'Georgia', serif", letterSpacing: "-0.01em", color: "#16304f" }}>{title}</h2>
     </header>
+  );
+}
+
+function AnalyticsBarChart({ title, subtitle, bars, emptyText = "No data available" }) {
+  const safeBars = Array.isArray(bars) ? bars.filter(Boolean) : [];
+  const maxValue = Math.max(1, ...safeBars.map((bar) => Number(bar?.value || 0)));
+
+  return (
+    <section className="rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: "#dbeafe" }}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-extrabold uppercase tracking-widest text-slate-500">{title}</p>
+          {subtitle ? <p className="mt-1 text-xs text-slate-400">{subtitle}</p> : null}
+        </div>
+      </div>
+      {!safeBars.length ? (
+        <p className="text-sm text-slate-500">{emptyText}</p>
+      ) : (
+        <div className="flex h-52 items-end gap-3">
+          {safeBars.map((bar) => {
+            const height = Math.max(14, Math.round((Number(bar?.value || 0) / maxValue) * 100));
+            return (
+              <div key={bar.key || bar.label} className="flex flex-1 flex-col items-center gap-2">
+                <span className="text-xs font-bold" style={{ color: bar.color || "#1d4ed8" }}>{bar.value ?? 0}</span>
+                <div
+                  className="w-full rounded-t-2xl"
+                  style={{
+                    height: `${height}%`,
+                    minHeight: "14px",
+                    background: `linear-gradient(180deg, ${bar.color || "#3b82f6"}, ${(bar.color || "#3b82f6")}bb)`
+                  }}
+                />
+                <span className="text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500">{bar.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AnalyticsDonutCard({ title, total, segments, subtitle }) {
+  const safeSegments = Array.isArray(segments) ? segments.filter((segment) => Number(segment?.value || 0) > 0) : [];
+  const safeTotal = Math.max(0, Number(total || 0));
+  const computedTotal = safeSegments.reduce((sum, segment) => sum + Number(segment.value || 0), 0);
+  const chartTotal = Math.max(1, safeTotal || computedTotal);
+  let currentPct = 0;
+  const gradientStops = safeSegments.map((segment) => {
+    const value = Number(segment.value || 0);
+    const start = currentPct;
+    currentPct += (value / chartTotal) * 100;
+    return `${segment.color || "#3b82f6"} ${start}% ${currentPct}%`;
+  });
+
+  return (
+    <section className="rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: "#dbeafe" }}>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-extrabold uppercase tracking-widest text-slate-500">{title}</p>
+          {subtitle ? <p className="mt-1 text-xs text-slate-400">{subtitle}</p> : null}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-6">
+        <div
+          className="relative h-36 w-36 rounded-full"
+          style={{
+            background: gradientStops.length
+              ? `conic-gradient(${gradientStops.join(", ")})`
+              : "conic-gradient(#dbeafe 0% 100%)"
+          }}
+        >
+          <div className="absolute inset-4 flex flex-col items-center justify-center rounded-full bg-white text-slate-900">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Total</span>
+            <span className="text-3xl font-extrabold" style={{ fontFamily: "'Georgia', serif" }}>{safeTotal || computedTotal}</span>
+          </div>
+        </div>
+        <div className="space-y-2 text-sm text-slate-600">
+          {(safeSegments.length ? safeSegments : [{ label: "No data", value: 0, color: "#cbd5e1" }]).map((segment) => (
+            <div key={segment.label} className="flex items-center gap-2">
+              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: segment.color || "#cbd5e1" }} />
+              <span className="font-medium text-slate-700">{segment.label}</span>
+              <span className="font-bold text-slate-900">{segment.value ?? 0}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -387,22 +591,194 @@ function DashboardThemeStyles() {
         color: #16304f !important;
         border: 1px solid #c7d7ee !important;
       }
+
+      .dashboard-shell.owner-theme {
+        --owner-bg: #f6f8fc;
+        --owner-bg-soft: #eef2f8;
+        --owner-topbar: #ffffff;
+        --owner-sidebar: #f4f7fc;
+        --owner-card: #ffffff;
+        --owner-card-soft: #f7f9fd;
+        --owner-border: #d9e3f2;
+        --owner-text: #0f172a;
+        --owner-text-soft: #51627b;
+        --owner-accent: #27c58a;
+        --owner-accent-strong: #11a86d;
+        --owner-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+      }
+
+      html[data-theme="dark"] .dashboard-shell.owner-theme {
+        --owner-bg: #070d1a;
+        --owner-bg-soft: #0d1527;
+        --owner-topbar: #0b1222;
+        --owner-sidebar: #0b1324;
+        --owner-card: #0f1729;
+        --owner-card-soft: #141f33;
+        --owner-border: #1f2c46;
+        --owner-text: #e5edf8;
+        --owner-text-soft: #9cb0cf;
+        --owner-accent: #39d39b;
+        --owner-accent-strong: #1fbc82;
+        --owner-shadow: 0 24px 42px rgba(2, 6, 23, 0.55);
+      }
+
+      .dashboard-shell.owner-theme main {
+        background: linear-gradient(180deg, var(--owner-bg) 0%, var(--owner-bg-soft) 100%) !important;
+      }
+
+      .dashboard-shell.owner-theme .owner-topbar {
+        background: var(--owner-topbar) !important;
+        border-bottom: 1px solid var(--owner-border) !important;
+        box-shadow: none !important;
+      }
+
+      .dashboard-shell.owner-theme .owner-sidebar {
+        background: var(--owner-sidebar) !important;
+        border-right: 1px solid var(--owner-border) !important;
+        box-shadow: none !important;
+      }
+
+      .dashboard-shell.owner-theme .owner-hero,
+      .dashboard-shell.owner-theme section.rounded-2xl,
+      .dashboard-shell.owner-theme article.rounded-2xl,
+      .dashboard-shell.owner-theme .owner-stat-card,
+      .dashboard-shell.owner-theme .rounded-xl {
+        background: linear-gradient(180deg, var(--owner-card) 0%, var(--owner-card-soft) 100%) !important;
+        border-color: var(--owner-border) !important;
+        color: var(--owner-text) !important;
+        box-shadow: var(--owner-shadow) !important;
+      }
+
+      .dashboard-shell.owner-theme .owner-stat-card {
+        border-left-color: var(--stat-accent, var(--owner-accent)) !important;
+      }
+
+      .dashboard-shell.owner-theme .owner-section-title-text,
+      .dashboard-shell.owner-theme .owner-stat-card p,
+      .dashboard-shell.owner-theme .text-slate-900,
+      .dashboard-shell.owner-theme .text-blue-900,
+      .dashboard-shell.owner-theme .text-slate-800 {
+        color: var(--owner-text) !important;
+      }
+
+      .dashboard-shell.owner-theme .text-slate-500,
+      .dashboard-shell.owner-theme .text-slate-400,
+      .dashboard-shell.owner-theme .text-blue-900\\/40,
+      .dashboard-shell.owner-theme .text-blue-600 {
+        color: var(--owner-text-soft) !important;
+      }
+
+      .dashboard-shell.owner-theme .owner-nav-btn {
+        color: var(--owner-text-soft) !important;
+        border: 1px solid transparent !important;
+        border-left: 3px solid transparent !important;
+      }
+
+      .dashboard-shell.owner-theme .owner-nav-btn:hover {
+        background: rgba(39, 197, 138, 0.09) !important;
+        border-color: rgba(39, 197, 138, 0.25) !important;
+        border-left: 3px solid rgba(39, 197, 138, 0.75) !important;
+        color: var(--owner-text) !important;
+      }
+
+      .dashboard-shell.owner-theme .owner-nav-btn.owner-nav-btn-active {
+        background: linear-gradient(135deg, var(--owner-accent-strong), var(--owner-accent)) !important;
+        color: #02120d !important;
+        border-color: rgba(39, 197, 138, 0.45) !important;
+        border-left: 3px solid #8df4cb !important;
+        box-shadow: 0 8px 20px rgba(17, 168, 109, 0.25) !important;
+      }
+
+      .dashboard-shell.owner-theme input,
+      .dashboard-shell.owner-theme select,
+      .dashboard-shell.owner-theme textarea {
+        background: var(--owner-card-soft) !important;
+        border-color: var(--owner-border) !important;
+        color: var(--owner-text) !important;
+      }
+
+      .dashboard-shell.owner-theme input:focus,
+      .dashboard-shell.owner-theme select:focus,
+      .dashboard-shell.owner-theme textarea:focus {
+        border-color: var(--owner-accent) !important;
+        box-shadow: 0 0 0 3px rgba(57, 211, 155, 0.18) !important;
+      }
+
+      .dashboard-shell.owner-theme .overflow-x-auto.rounded-2xl.border {
+        border-color: var(--owner-border) !important;
+        background: var(--owner-card) !important;
+        box-shadow: var(--owner-shadow) !important;
+      }
+
+      .dashboard-shell.owner-theme .overflow-x-auto.rounded-2xl.border thead {
+        background: var(--owner-card-soft) !important;
+      }
+
+      .dashboard-shell.owner-theme .overflow-x-auto.rounded-2xl.border th,
+      .dashboard-shell.owner-theme .overflow-x-auto.rounded-2xl.border td {
+        color: var(--owner-text) !important;
+      }
+
+      .dashboard-shell.owner-theme .overflow-x-auto.rounded-2xl.border tr {
+        border-color: var(--owner-border) !important;
+      }
+
+      .owner-modal .owner-modal-card {
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        border-color: #d9e3f2;
+        box-shadow: 0 24px 54px rgba(2, 6, 23, 0.35);
+      }
+
+      html[data-theme="dark"] .dashboard-shell.owner-theme .owner-modal .owner-modal-card {
+        background: linear-gradient(180deg, #0f1729 0%, #141f33 100%);
+        border-color: #1f2c46;
+      }
+
+      .owner-analytics-grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      @media (min-width: 1200px) {
+        .owner-analytics-grid {
+          grid-template-columns: 1.2fr 1.2fr;
+        }
+      }
+
+      .owner-project-card,
+      .owner-task-group {
+        background: linear-gradient(180deg, var(--owner-card, #fff) 0%, var(--owner-card-soft, #f8fbff) 100%);
+        border: 1px solid var(--owner-border, #dbeafe);
+        box-shadow: var(--owner-shadow, 0 14px 30px rgba(15, 23, 42, 0.05));
+      }
     `}</style>
   );
 }
 
 export default function ManagerDashboardPage() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
 
   const [currentUser, setCurrentUser] = useState(null);
   const [roleType, setRoleType] = useState("employee");
   const [activeMenu, setActiveMenu] = useState("employee-dashboard");
+  const [showOwnerCreateRoleModal, setShowOwnerCreateRoleModal] = useState(false);
+  const [showOwnerEditRoleModal, setShowOwnerEditRoleModal] = useState(false);
+  const [showOwnerCreateProjectModal, setShowOwnerCreateProjectModal] = useState(false);
+  const [showOwnerEditProjectModal, setShowOwnerEditProjectModal] = useState(false);
+  const [showOwnerCreateTaskModal, setShowOwnerCreateTaskModal] = useState(false);
+  const [showOwnerEditTaskModal, setShowOwnerEditTaskModal] = useState(false);
+  const [showOwnerCreateUserModal, setShowOwnerCreateUserModal] = useState(false);
+  const [detailsModal, setDetailsModal] = useState({
+    open: false,
+    title: "Details",
+    entityType: "",
+    entity: null,
+    loading: false,
+    error: ""
+  });
 
   const [busyKey, setBusyKey] = useState("");
   const [errorText, setErrorText] = useState("");
-  const [noticeText, setNoticeText] = useState("");
-  const [inviteLink, setInviteLink] = useState("");
 
   const [ownerOverview, setOwnerOverview] = useState(EMPTY_OWNER_OVERVIEW);
   const [managerOverview, setManagerOverview] = useState(EMPTY_MANAGER_OVERVIEW);
@@ -428,6 +804,8 @@ export default function ManagerDashboardPage() {
   const [myLeaves, setMyLeaves] = useState([]);
   const [hrLeaves, setHrLeaves] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [selectedAttendanceDate, setSelectedAttendanceDate] = useState(getLocalDateKey());
+  const [attendanceCalendarMonth, setAttendanceCalendarMonth] = useState(getMonthStart(new Date()));
   const [departments, setDepartments] = useState([]);
   const [managerProjectTeamsByProjectId, setManagerProjectTeamsByProjectId] = useState({});
 
@@ -677,6 +1055,8 @@ export default function ManagerDashboardPage() {
     return filtered.length ? filtered : base;
   }, [roleType, permissions]);
 
+  const isOwnerPortal = roleType === "owner";
+
   const persistActiveMenu = (menuId) => {
     if (typeof window === "undefined" || !menuId) return;
     window.localStorage.setItem("dashboard.activeMenu", menuId);
@@ -726,11 +1106,9 @@ export default function ManagerDashboardPage() {
   const runAction = async (key, task, successMessage = "") => {
     setBusyKey(key);
     setErrorText("");
-    setNoticeText("");
 
     try {
       await task();
-      if (successMessage) setNoticeText(successMessage);
     } catch (err) {
       setErrorText(extractError(err));
     } finally {
@@ -1143,7 +1521,6 @@ export default function ManagerDashboardPage() {
 
   const submitCreateUser = async (e) => {
     e.preventDefault();
-    setInviteLink("");
 
     const companyId = createUserCompanyId;
     const roleId = numberOrNull(createUserForm.role_id);
@@ -1159,19 +1536,19 @@ export default function ManagerDashboardPage() {
     }
 
     await runAction("create-user", async () => {
-      const response = await postData("/create-user/", {
+      await postData("/create-user/", {
         company_id: companyId,
         first_name: String(createUserForm.first_name || "").trim(),
         email: String(createUserForm.email || "").trim(),
         role_id: roleId
       });
 
-      const token = response?.invite_token;
-      setInviteLink(makeInviteLink(token));
-
       setCreateUserForm({ company_id: String(companyId), first_name: "", email: "", role_id: "" });
       await refreshByRole(roleType);
-    }, "✅ User invited successfully! Invite link generated.");
+    }, "");
+    if (roleType === "owner") {
+      setShowOwnerCreateUserModal(false);
+    }
   };
 
   const submitCreateRole = async (e) => {
@@ -1225,6 +1602,9 @@ export default function ManagerDashboardPage() {
       }));
       await refreshByRole(roleType);
     }, "✅ Role created successfully!");
+    if (roleType === "owner") {
+      setShowOwnerCreateRoleModal(false);
+    }
   };
 
   const updateRoleFromList = (roleRow) => {
@@ -1244,6 +1624,9 @@ export default function ManagerDashboardPage() {
     }
 
     setUpdateRoleForm(nextState);
+    if (roleType === "owner" || roleType === "manager" || roleType === "hr") {
+      setShowOwnerEditRoleModal(true);
+    }
 
   };
 
@@ -1296,6 +1679,9 @@ export default function ManagerDashboardPage() {
       await patchData(`/roles/${roleId}/`, payload);
       await refreshByRole(roleType);
     }, "✅ Role updated successfully!");
+    if (roleType === "owner") {
+      setShowOwnerEditRoleModal(false);
+    }
   };
 
   const deleteRoleFromList = async (roleRow) => {
@@ -1443,6 +1829,9 @@ export default function ManagerDashboardPage() {
       });
       await refreshByRole(roleType);
     }, "✅ Project created successfully!");
+    if (roleType === "owner") {
+      setShowOwnerCreateProjectModal(false);
+    }
   };
 
   const submitAssignClient = async (e) => {
@@ -1490,6 +1879,9 @@ export default function ManagerDashboardPage() {
       );
       await refreshByRole(roleType);
     }, "✅ Project updated successfully!");
+    if (roleType === "owner") {
+      setShowOwnerEditProjectModal(false);
+    }
   };
 
   const submitDeleteProject = async (e) => {
@@ -1614,6 +2006,9 @@ export default function ManagerDashboardPage() {
       await patchData(`/projects/${projectId}/`, payload);
       await refreshByRole(roleType);
     }, "✅ Project updated successfully!");
+    if (roleType === "owner") {
+      setShowOwnerEditProjectModal(false);
+    }
   };
 
   const deleteProjectFromList = async (projectRow) => {
@@ -1693,6 +2088,9 @@ export default function ManagerDashboardPage() {
       });
       await refreshByRole(roleType);
     }, "✅ Task created successfully!");
+    if (roleType === "owner") {
+      setShowOwnerCreateTaskModal(false);
+    }
   };
 
   const submitLoadManagerProjectTasks = async (e) => {
@@ -1736,6 +2134,40 @@ export default function ManagerDashboardPage() {
       await putData(`/tasks/${ownerUpdateTaskForm.task_id}/`, buildTaskUpdatePayload(ownerUpdateTaskForm));
       await refreshByRole(roleType);
     }, "✅ Task updated successfully!");
+    if (roleType === "owner") {
+      setShowOwnerEditTaskModal(false);
+    }
+  };
+
+  const toggleTaskCompleted = async (taskRow, checked) => {
+    const taskId = taskRow?.id;
+    if (!taskId) return;
+
+    const nextStatus = checked ? "COMPLETED" : "PENDING";
+    const nextProgress = checked ? 100 : Number(taskRow?.progress ?? 0);
+
+    await runAction(`toggle-task-${taskId}`, async () => {
+      try {
+        await patchData(`/tasks/${taskId}/`, {
+          status: nextStatus,
+          progress: nextProgress
+        });
+      } catch {
+        const fallbackPayload = {
+          title: String(taskRow?.title || ""),
+          description: String(taskRow?.description || ""),
+          assigned_to: Number(getEntityId(taskRow?.assigned_to) || 0),
+          project: numberOrNull(getEntityId(taskRow?.project)),
+          status: nextStatus,
+          priority: String(taskRow?.priority || "MEDIUM"),
+          due_date: String(taskRow?.due_date || ""),
+          progress: nextProgress,
+          reference_link: String(taskRow?.reference_link || "")
+        };
+        await putData(`/tasks/${taskId}/`, fallbackPayload);
+      }
+      await refreshByRole(roleType);
+    }, checked ? "✅ Task marked completed." : "✅ Task marked pending.");
   };
 
   const deleteTaskFromList = async (taskRow) => {
@@ -1765,23 +2197,93 @@ export default function ManagerDashboardPage() {
     }, "✅ Task deleted.");
   };
 
-  const openTaskDetails = (taskRow) => {
-    const taskId = taskRow?.id;
-    if (taskId === undefined || taskId === null) return;
-    navigate(`/task/${taskId}`, { state: { task: taskRow } });
+  const openEntityDetails = async (entityType, baseRow) => {
+    const id = String(getEntityId(baseRow?.id) || "").trim();
+    const fallbackTitle =
+      entityType === "project"
+        ? String(baseRow?.name || "Project Details")
+        : entityType === "task"
+          ? String(baseRow?.title || "Task Details")
+          : entityType === "user"
+            ? String(baseRow?.name || baseRow?.email || "User Details")
+            : entityType === "role"
+              ? String(baseRow?.name || baseRow?.slug || "Role Details")
+              : "Details";
+
+    setDetailsModal({
+      open: true,
+      title: fallbackTitle,
+      entityType,
+      entity: baseRow || null,
+      loading: Boolean(id),
+      error: ""
+    });
+
+    if (!id) return;
+
+    const findInList = async (endpoints) => {
+      for (const endpoint of endpoints) {
+        try {
+          const rows = toArray(await getData(endpoint));
+          const matched = rows.find((row) => String(getEntityId(row?.id) || "") === id);
+          if (matched) return matched;
+        } catch {
+          // ignore and continue
+        }
+      }
+      return null;
+    };
+
+    let fetched = null;
+
+    try {
+      if (entityType === "project") fetched = await getData(`/projects/${id}/`);
+      if (entityType === "task") fetched = await getData(`/tasks/${id}/`);
+      if (entityType === "role") fetched = await getData(`/roles/${id}/`);
+      if (entityType === "user") fetched = await getData(`/users/${id}/`);
+    } catch {
+      // fallback below
+    }
+
+    if (!fetched) {
+      if (entityType === "project") {
+        fetched = await findInList(["/manager-projects/", "/all-projects/", "/my-projects/"]);
+      } else if (entityType === "task") {
+        fetched = await findInList(["/all-tasks/", "/team-tasks/", "/my-tasks/", "/tasks/"]);
+      } else if (entityType === "user") {
+        fetched = await findInList(["/users/", "/team/"]);
+      } else if (entityType === "role") {
+        fetched = await findInList(["/roles/"]);
+      }
+    }
+
+    const finalRow = fetched || baseRow || null;
+    const finalTitle =
+      entityType === "project"
+        ? String(finalRow?.name || "Project Details")
+        : entityType === "task"
+          ? String(finalRow?.title || "Task Details")
+          : entityType === "user"
+            ? String(finalRow?.name || finalRow?.email || "User Details")
+            : entityType === "role"
+              ? String(finalRow?.name || finalRow?.slug || "Role Details")
+              : fallbackTitle;
+
+    setDetailsModal((prev) => ({
+      ...prev,
+      open: true,
+      title: finalTitle,
+      entityType,
+      entity: finalRow,
+      loading: false,
+      error: finalRow ? "" : "Details not found."
+    }));
   };
 
-  const openProjectDetails = (projectRow) => {
-    const projectId = projectRow?.id;
-    if (projectId === undefined || projectId === null) return;
-    navigate(`/project/${projectId}`, { state: { project: projectRow } });
-  };
-
-  const openUserDetails = (userRow) => {
-    const userId = userRow?.id;
-    if (userId === undefined || userId === null) return;
-    navigate(`/user/${userId}`, { state: { user: userRow } });
-  };
+  const openTaskDetails = (taskRow) => openEntityDetails("task", taskRow);
+  const openProjectDetails = (projectRow) => openEntityDetails("project", projectRow);
+  const openUserDetails = (userRow) => openEntityDetails("user", userRow);
+  const openRoleDetails = (roleRow) => openEntityDetails("role", roleRow);
 
   const submitEmployeeUpdateTask = async (e) => {
     e.preventDefault();
@@ -1988,6 +2490,15 @@ export default function ManagerDashboardPage() {
 
     return lookup;
   }, [roles]);
+
+  const roleLabelById = useMemo(() => {
+    const lookup = {};
+    for (const role of roles) {
+      if (role?.id === undefined || role?.id === null) continue;
+      lookup[String(role.id)] = String(role?.name || role?.slug || `Role ${role.id}`);
+    }
+    return lookup;
+  }, [roles]);
   const createTaskProjectOptions = useMemo(() => {
     const sourceRows =
       activeMenu === "manager-tasks"
@@ -2017,13 +2528,15 @@ export default function ManagerDashboardPage() {
 
   const createTaskAssigneeOptions = useMemo(() => {
     const sourceRows = activeMenu === "manager-tasks" && teamMembers.length ? teamMembers : users;
+    const taskDerivedRows = toArray(ownerTasks).map((task) => task?.assigned_to).filter((row) => row && typeof row === "object");
+    const mergedRows = [...toArray(sourceRows), ...toArray(teamMembers), ...taskDerivedRows];
 
     const seen = new Set();
     const allOptions = [];
     const employeeOptions = [];
 
-    for (const row of sourceRows) {
-      const id = row?.id;
+    for (const row of mergedRows) {
+      const id = getEntityId(row);
       if (id === undefined || id === null) continue;
 
       const key = String(id);
@@ -2059,8 +2572,15 @@ export default function ManagerDashboardPage() {
       }
     }
 
-    return employeeOptions.length ? employeeOptions : allOptions;
-  }, [activeMenu, teamMembers, users, roleNameById]);
+    if (employeeOptions.length) return employeeOptions;
+    if (allOptions.length) return allOptions;
+
+    if (currentUser?.id) {
+      return [{ id: String(currentUser.id), label: getUserDisplayName(currentUser) }];
+    }
+
+    return [];
+  }, [activeMenu, teamMembers, users, roleNameById, ownerTasks, currentUser]);
 
   const ownerTaskOptions = useMemo(() => toArray(ownerTasks), [ownerTasks]);
 
@@ -2216,6 +2736,59 @@ export default function ManagerDashboardPage() {
       [...toArray(attendanceRecords)].sort((a, b) => String(b?.date || "").localeCompare(String(a?.date || ""))),
     [attendanceRecords]
   );
+  const attendanceRecordByDate = useMemo(
+    () =>
+      Object.fromEntries(
+        employeeAttendanceRows
+          .filter((row) => row?.date)
+          .map((row) => [String(row.date), row])
+      ),
+    [employeeAttendanceRows]
+  );
+  const attendanceSelectedRecord = attendanceRecordByDate[selectedAttendanceDate] || null;
+  const attendanceCalendarDays = useMemo(
+    () => buildCalendarDays(attendanceCalendarMonth),
+    [attendanceCalendarMonth]
+  );
+  const attendanceStatusBars = useMemo(() => {
+    const present = employeeAttendanceRows.filter((row) => String(row?.status || "").toUpperCase() === "PRESENT").length;
+    const absent = employeeAttendanceRows.filter((row) => String(row?.status || "").toUpperCase() === "ABSENT").length;
+    const halfDay = employeeAttendanceRows.filter((row) => String(row?.status || "").toUpperCase() === "HALF_DAY").length;
+    const onLeave = employeeAttendanceRows.filter((row) => String(row?.status || "").toUpperCase().includes("LEAVE")).length;
+
+    return [
+      { key: "present", label: "Present", value: present, color: "#16a34a" },
+      { key: "absent", label: "Absent", value: absent, color: "#dc2626" },
+      { key: "half-day", label: "Half Day", value: halfDay, color: "#d97706" },
+      { key: "leave", label: "On Leave", value: onLeave, color: "#0891b2" }
+    ];
+  }, [employeeAttendanceRows]);
+  useEffect(() => {
+    const todayKey = getLocalDateKey();
+    const preferredDate = attendanceRecordByDate[todayKey]
+      ? todayKey
+      : employeeAttendanceRows[0]?.date
+        ? String(employeeAttendanceRows[0].date)
+        : todayKey;
+
+    setSelectedAttendanceDate((current) => (current && attendanceRecordByDate[current] ? current : preferredDate));
+  }, [attendanceRecordByDate, employeeAttendanceRows]);
+  useEffect(() => {
+    const targetDate = selectedAttendanceDate || getLocalDateKey();
+    const parsed = new Date(targetDate);
+    if (Number.isNaN(parsed.getTime())) return;
+
+    setAttendanceCalendarMonth((current) => {
+      if (
+        current.getFullYear() === parsed.getFullYear()
+        && current.getMonth() === parsed.getMonth()
+      ) {
+        return current;
+      }
+
+      return getMonthStart(parsed);
+    });
+  }, [selectedAttendanceDate]);
   const handleOwnerTaskSelection = (taskId) => {
     const selectedId = String(taskId || "");
     const task = ownerTaskOptions.find((row) => String(row?.id) === selectedId);
@@ -2226,6 +2799,13 @@ export default function ManagerDashboardPage() {
     }
 
     setOwnerUpdateTaskForm(mapTaskToUpdateForm(task));
+  };
+
+  const openOwnerTaskEditModal = (taskRow) => {
+    const taskId = String(taskRow?.id || "");
+    if (!taskId) return;
+    handleOwnerTaskSelection(taskId);
+    setShowOwnerEditTaskModal(true);
   };
 
   const handleManagerTaskSelection = (taskId) => {
@@ -2284,6 +2864,13 @@ export default function ManagerDashboardPage() {
     });
   };
 
+  const openOwnerProjectEditModal = (projectRow) => {
+    const projectId = String(projectRow?.id || "");
+    if (!projectId) return;
+    handleManagerProjectSelection(projectId);
+    setShowOwnerEditProjectModal(true);
+  };
+
   const ownerTaskMetrics = useMemo(() => {
     const todayISO = new Date().toISOString().slice(0, 10);
 
@@ -2305,6 +2892,78 @@ export default function ManagerDashboardPage() {
       overdue_tasks: apiOverdue > 0 ? apiOverdue : derivedOverdue
     };
   }, [taskAnalytics, ownerTasks]);
+
+  const ownerMonthlyCompletion = useMemo(() => {
+    const monthKeys = [];
+    const now = new Date();
+
+    for (let offset = 5; offset >= 0; offset -= 1) {
+      const d = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+      monthKeys.push({
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+        label: d.toLocaleString("en-US", { month: "short" })
+      });
+    }
+
+    const completedByMonth = Object.fromEntries(monthKeys.map((m) => [m.key, 0]));
+    for (const task of ownerTasks) {
+      const status = String(task?.status || "").toUpperCase();
+      if (status !== "COMPLETED") continue;
+      const dt = new Date(task?.updated_at || task?.created_at || task?.due_date || "");
+      if (Number.isNaN(dt.getTime())) continue;
+      const mk = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      if (completedByMonth[mk] !== undefined) completedByMonth[mk] += 1;
+    }
+
+    const maxValue = Math.max(1, ...Object.values(completedByMonth));
+    return monthKeys.map((m) => ({
+      ...m,
+      value: completedByMonth[m.key] || 0,
+      height: Math.max(20, Math.round(((completedByMonth[m.key] || 0) / maxValue) * 100))
+    }));
+  }, [ownerTasks]);
+
+  const ownerStatusBreakdown = useMemo(() => {
+    const total = Math.max(1, ownerTasks.length);
+    const done = ownerTasks.filter((task) => String(task?.status || "").toUpperCase() === "COMPLETED").length;
+    const inProgress = ownerTasks.filter((task) => String(task?.status || "").toUpperCase() === "IN_PROGRESS").length;
+    const overdue = ownerTasks.filter((task) => {
+      const dueDate = String(task?.due_date || "");
+      const status = String(task?.status || "").toUpperCase();
+      const todayISO = new Date().toISOString().slice(0, 10);
+      return dueDate && dueDate < todayISO && status !== "COMPLETED";
+    }).length;
+
+    const donePct = Math.round((done / total) * 100);
+    const inProgressPct = Math.round((inProgress / total) * 100);
+    const overduePct = Math.max(0, 100 - donePct - inProgressPct);
+
+    return {
+      donePct,
+      inProgressPct,
+      overduePct,
+      donut: `conic-gradient(#39d39b 0 ${donePct}%, #f4b740 ${donePct}% ${donePct + inProgressPct}%, #ff6b6b ${donePct + inProgressPct}% 100%)`
+    };
+  }, [ownerTasks]);
+
+  const ownerRecentProjects = useMemo(() => {
+    const rows = buildProjectsWithTaskProgress(ownerProjects, ownerTasks);
+    return [...rows]
+      .sort((a, b) => parseProgressValue(b?.progress) - parseProgressValue(a?.progress))
+      .slice(0, 4);
+  }, [ownerProjects, ownerTasks]);
+
+  const ownerRecentActivities = useMemo(() => {
+    return [...ownerTasks]
+      .sort((a, b) => {
+        const aTime = new Date(a?.updated_at || a?.created_at || 0).getTime();
+        const bTime = new Date(b?.updated_at || b?.created_at || 0).getTime();
+        return bTime - aTime;
+      })
+      .slice(0, 5);
+  }, [ownerTasks]);
+
+  const ownerTasksGroupedByProject = useMemo(() => groupTasksByProject(ownerTasks), [ownerTasks]);
 
   const managerAllTasks = useMemo(() => {
     const merged = [...toArray(managerScopedTasks), ...toArray(myTasks)];
@@ -2354,6 +3013,14 @@ export default function ManagerDashboardPage() {
   }, [currentUser, teamMembers, teamTasks]);
 
   const managerVisibleTaskRows = useMemo(() => toArray(managerAllTasks), [managerAllTasks]);
+  const managerTasksGroupedByProject = useMemo(
+    () => groupTasksByProject(managerVisibleTaskRows),
+    [managerVisibleTaskRows]
+  );
+  const employeeTasksGroupedByProject = useMemo(
+    () => groupTasksByProject(employeeTasks),
+    [employeeTasks]
+  );
 
   const managerTaskMetrics = useMemo(() => {
     const todayISO = new Date().toISOString().slice(0, 10);
@@ -2434,8 +3101,26 @@ export default function ManagerDashboardPage() {
             : Number(apiOverview.team_members_count || 0)
     };
   }, [managerOverview, managerProjectRows, managerProjectTeamGroups, managerTaskMetrics, users]);
+  const managerTaskStatusChart = useMemo(
+    () => [
+      { key: "completed", label: "Completed", value: managerOverviewCards.completed_tasks, color: "#16a34a" },
+      { key: "progress", label: "In Progress", value: managerOverviewCards.in_progress_tasks, color: "#0891b2" },
+      { key: "pending", label: "Pending", value: managerOverviewCards.pending_tasks, color: "#d97706" },
+      { key: "overdue", label: "Overdue", value: managerOverviewCards.overdue_tasks, color: "#dc2626" }
+    ],
+    [managerOverviewCards]
+  );
+  const managerProjectStatusChart = useMemo(() => {
+    const projects = managerProjectRowsWithProgress;
+    return [
+      { key: "active", label: "Active", value: projects.filter((row) => String(row?.status || "").toUpperCase() === "ACTIVE").length, color: "#2563eb" },
+      { key: "completed", label: "Completed", value: projects.filter((row) => String(row?.status || "").toUpperCase() === "COMPLETED").length, color: "#16a34a" },
+      { key: "on-hold", label: "On Hold", value: projects.filter((row) => String(row?.status || "").toUpperCase() === "ON_HOLD").length, color: "#7c3aed" }
+    ];
+  }, [managerProjectRowsWithProgress]);
 
   const userColumns = [
+    { key: "account_no", label: "User ID" },
     {
       key: "name",
       label: "Name",
@@ -2473,6 +3158,9 @@ export default function ManagerDashboardPage() {
         return roleName === undefined || roleName === null || roleName === "" ? "-" : String(roleName);
       }
     },
+    { key: "department", label: "Department" },
+    { key: "designation", label: "Designation" },
+    { key: "phone", label: "Phone" },
     {
       key: "role_level",
       label: "Level",
@@ -2636,6 +3324,41 @@ export default function ManagerDashboardPage() {
 
     return buildHrFallbackUserRows(attendanceRecords, hrLeaves, currentUser);
   }, [attendanceRecords, currentUser, hrLeaves, users]);
+  const hrAttendanceChart = useMemo(
+    () => [
+      { key: "present", label: "Present", value: Number(hrOverview.attendance?.present || 0), color: "#16a34a" },
+      { key: "absent", label: "Absent", value: Number(hrOverview.attendance?.absent || 0), color: "#dc2626" },
+      { key: "half", label: "Half Day", value: Number(hrOverview.attendance?.half_day || 0), color: "#d97706" },
+      { key: "leave", label: "On Leave", value: Number(hrOverview.attendance?.on_leave || 0), color: "#0891b2" }
+    ],
+    [hrOverview]
+  );
+  const hrLeaveChart = useMemo(
+    () => [
+      { key: "approved", label: "Approved", value: Number(hrOverview.leave_summary?.approved || 0), color: "#16a34a" },
+      { key: "pending", label: "Pending", value: Number(hrOverview.leave_summary?.pending || 0), color: "#d97706" },
+      { key: "rejected", label: "Rejected", value: Number(hrOverview.leave_summary?.rejected || 0), color: "#dc2626" }
+    ],
+    [hrOverview]
+  );
+  const hrDepartmentChart = useMemo(() => {
+    const counts = {};
+
+    for (const row of hrVisibleUsers) {
+      const department = String(row?.department || "Unassigned").trim() || "Unassigned";
+      counts[department] = (counts[department] || 0) + 1;
+    }
+
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([label, value], index) => ({
+        key: label,
+        label,
+        value,
+        color: ["#2563eb", "#0891b2", "#16a34a", "#7c3aed", "#d97706"][index % 5]
+      }));
+  }, [hrVisibleUsers]);
 
   const hrEmployeeRows = useMemo(() => {
     const rows = toArray(hrVisibleUsers);
@@ -2948,6 +3671,45 @@ export default function ManagerDashboardPage() {
     </section>
   );
 
+  const detailsFieldEntries = useMemo(() => {
+    const row = detailsModal.entity;
+    if (!row) return [];
+
+    const normalized = { ...row };
+    const type = detailsModal.entityType;
+
+    if (type === "project") {
+      const managerId = String(getEntityId(row?.manager) || "");
+      const clientId = String(getEntityId(row?.client) || "");
+      normalized.manager = managerId ? taskUserLabelById[managerId] || row?.manager_name || managerId : row?.manager || "-";
+      normalized.client = clientId ? taskUserLabelById[clientId] || row?.client_name || clientId : row?.client || "-";
+    }
+
+    if (type === "task") {
+      const assignedId = String(getEntityId(row?.assigned_to) || "");
+      const createdById = String(getEntityId(row?.created_by) || "");
+      const projectId = String(getEntityId(row?.project) || "");
+      normalized.assigned_to = assignedId ? taskUserLabelById[assignedId] || row?.assigned_to_name || assignedId : row?.assigned_to || "-";
+      normalized.created_by = createdById ? taskUserLabelById[createdById] || row?.created_by_name || createdById : row?.created_by || "-";
+      normalized.project = projectId ? taskProjectLabelById[projectId] || row?.project_name || projectId : row?.project || "-";
+    }
+
+    if (type === "user") {
+      const roleId = String(getEntityId(row?.role) || "");
+      if (roleId) normalized.role = roleLabelById[roleId] || row?.role_name || row?.role || roleId;
+    }
+
+    if (type === "role") {
+      const companyId = String(getEntityId(row?.company) || "");
+      if (companyId) {
+        const companyRow = companies.find((item) => String(item?.id || "") === companyId);
+        normalized.company = companyRow?.name || companyId;
+      }
+    }
+
+    return Object.entries(normalized);
+  }, [companies, detailsModal.entity, detailsModal.entityType, roleLabelById, taskProjectLabelById, taskUserLabelById]);
+
   const taskColumns = [
     { key: "title", label: "Title" },
     { key: "description", label: "Description" },
@@ -3090,39 +3852,165 @@ export default function ManagerDashboardPage() {
   );
 
   const renderAttendanceAndLeaveSections = () => (
-    <>
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <SectionTitle title="Attendance Actions" />
-        <div className="flex flex-wrap gap-2">
-          <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" onClick={submitCheckIn} disabled={busyKey === "checkin"}>Mark Check-in</button>
-          <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition hover:bg-blue-100" onClick={submitCheckOut} disabled={busyKey === "checkout"}>Mark Checkout</button>
-        </div>
-      </section>
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <SectionTitle title="Attendance History" />
-        <DataTable columns={attendanceColumns} rows={employeeAttendanceRows} emptyText="No attendance records" />
-      </section>
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <SectionTitle title="Leaves Applied Status" />
-        <DataTable columns={leaveColumns} rows={myLeaves} emptyText="No leave history" />
-      </section>
-      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-        <SectionTitle title="Leave Application Form" />
-        <form className="grid gap-3 md:grid-cols-2" onSubmit={submitLeaveApply}>
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.start_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, start_date: e.target.value }))} required />
-          <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.end_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, end_date: e.target.value }))} required />
-          <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Reason</span><textarea className="input min-h-24 md:col-span-2" value={leaveApplyForm.reason} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, reason: e.target.value }))} required /></label>
-          <button className="btn-primary md:col-span-2" disabled={busyKey === "apply-leave"}>{busyKey === "apply-leave" ? "Submitting..." : "Apply Leave"}</button>
-        </form>
-      </section>
-    </>
+    (() => {
+      const presentCount = employeeAttendanceRows.filter((row) => String(row?.status || "").toUpperCase() === "PRESENT").length;
+      const absentCount = employeeAttendanceRows.filter((row) => String(row?.status || "").toUpperCase() === "ABSENT").length;
+      const halfDayCount = employeeAttendanceRows.filter((row) => String(row?.status || "").toUpperCase() === "HALF_DAY").length;
+      const onLeaveCount = employeeAttendanceRows.filter((row) => String(row?.status || "").toUpperCase().includes("LEAVE")).length;
+      const todayKey = getLocalDateKey();
+      const selectedLabel = selectedAttendanceDate
+        ? new Date(`${selectedAttendanceDate}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
+        : "Selected date";
+      const todayRecord = attendanceRecordByDate[todayKey] || employeeAttendanceRows[0] || {};
+
+      return (
+        <>
+          <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
+            <section className="owner-task-group rounded-2xl p-5">
+              <p className="mb-4 text-sm font-extrabold uppercase tracking-widest text-slate-500">My Attendance</p>
+              <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                <article className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                  <p className="text-2xl font-extrabold text-emerald-700">{presentCount}</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-emerald-700/80">Present</p>
+                </article>
+                <article className="rounded-xl border border-rose-200 bg-rose-50 p-3">
+                  <p className="text-2xl font-extrabold text-rose-700">{absentCount}</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-rose-700/80">Absent</p>
+                </article>
+                <article className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-2xl font-extrabold text-amber-700">{halfDayCount}</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-amber-700/80">Half Day</p>
+                </article>
+                <article className="rounded-xl border border-sky-200 bg-sky-50 p-3">
+                  <p className="text-2xl font-extrabold text-sky-700">{onLeaveCount}</p>
+                  <p className="text-xs font-bold uppercase tracking-widest text-sky-700/80">On Leave</p>
+                </article>
+              </div>
+              <div className="mb-5 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-extrabold uppercase tracking-widest text-blue-900/50">Attendance Calendar</p>
+                    <p className="mt-1 text-lg font-extrabold text-slate-900" style={{ fontFamily: "'Georgia', serif" }}>
+                      {attendanceCalendarMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button type="button" className="btn-secondary !px-3 !py-1.5 text-xs" onClick={() => setAttendanceCalendarMonth((current) => addCalendarMonths(current, -1))}>Prev</button>
+                    <button type="button" className="btn-secondary !px-3 !py-1.5 text-xs" onClick={() => setAttendanceCalendarMonth(getMonthStart(new Date()))}>Today</button>
+                    <button type="button" className="btn-secondary !px-3 !py-1.5 text-xs" onClick={() => setAttendanceCalendarMonth((current) => addCalendarMonths(current, 1))}>Next</button>
+                  </div>
+                </div>
+                <div className="mb-2 grid grid-cols-7 gap-2 text-center text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                    <span key={day}>{day}</span>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-2">
+                  {attendanceCalendarDays.map((cell, index) => {
+                    if (!cell) {
+                      return <div key={`empty-${index}`} className="h-12 rounded-xl bg-slate-50/70" />;
+                    }
+
+                    const dateKey = getLocalDateKey(cell);
+                    const record = attendanceRecordByDate[dateKey];
+                    const isSelected = selectedAttendanceDate === dateKey;
+                    const isToday = todayKey === dateKey;
+                    const status = String(record?.status || "").toUpperCase();
+                    const palette =
+                      status === "PRESENT"
+                        ? { bg: "#dcfce7", text: "#166534", ring: "#22c55e" }
+                        : status === "ABSENT"
+                          ? { bg: "#ffe4e6", text: "#be123c", ring: "#f43f5e" }
+                          : status === "HALF_DAY"
+                            ? { bg: "#fef3c7", text: "#b45309", ring: "#f59e0b" }
+                            : record
+                              ? { bg: "#e0f2fe", text: "#0369a1", ring: "#0ea5e9" }
+                              : { bg: "#f8fafc", text: "#475569", ring: "#cbd5e1" };
+
+                    return (
+                      <button
+                        key={dateKey}
+                        type="button"
+                        className="relative h-12 rounded-xl border text-sm font-bold transition"
+                        style={{
+                          background: isSelected ? "linear-gradient(135deg, #1d4ed8, #2563eb)" : palette.bg,
+                          color: isSelected ? "#ffffff" : palette.text,
+                          borderColor: isToday ? "#1d4ed8" : palette.ring,
+                          boxShadow: isToday ? "0 0 0 2px rgba(37,99,235,0.18)" : "none"
+                        }}
+                        onClick={() => setSelectedAttendanceDate(dateKey)}
+                        title={record ? `${dateKey} - ${status || "RECORDED"}` : `${dateKey} - no attendance`}
+                      >
+                        {isToday ? <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-current" /> : null}
+                        {cell.getDate()}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <AnalyticsBarChart title="Attendance Split" subtitle="Overall distribution" bars={attendanceStatusBars} />
+            </section>
+
+            <section className="owner-task-group rounded-2xl p-5">
+              <p className="mb-4 text-sm font-extrabold uppercase tracking-widest text-slate-500">Selected Day</p>
+              <div className="space-y-3">
+                <article className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-blue-800/80">Date</p>
+                  <p className="mt-1 text-2xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>{selectedLabel}</p>
+                  <p className="mt-1 text-sm text-blue-800/80">
+                    {selectedAttendanceDate === todayKey ? "Today's date is highlighted for quick access." : "Click any date in the calendar to inspect attendance."}
+                  </p>
+                </article>
+                <article className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-emerald-700/80">Check-in</p>
+                  <p className="mt-1 text-2xl font-extrabold text-emerald-700">{attendanceSelectedRecord?.check_in || "Pending"}</p>
+                </article>
+                <article className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-blue-800/80">Check-out</p>
+                  <p className="mt-1 text-2xl font-extrabold text-blue-800">{attendanceSelectedRecord?.check_out || "Pending"}</p>
+                </article>
+                <article className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-violet-800/80">Status</p>
+                  <div className="mt-2">
+                    <StatusPill value={attendanceSelectedRecord?.status || (selectedAttendanceDate === todayKey ? todayRecord?.status || "PENDING" : "NO_RECORD")} />
+                  </div>
+                </article>
+                {!attendanceSelectedRecord && selectedAttendanceDate !== todayKey ? (
+                  <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                    Is date par koi attendance record nahin mila.
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" onClick={submitCheckIn} disabled={busyKey === "checkin"}>Mark Check-in</button>
+                  <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition hover:bg-blue-100" onClick={submitCheckOut} disabled={busyKey === "checkout"}>Mark Checkout</button>
+                </div>
+                <div className="pt-2">
+                  <p className="mb-2 text-sm font-extrabold uppercase tracking-widest text-slate-500">Apply Leave</p>
+                  <form className="grid gap-3 md:grid-cols-2" onSubmit={submitLeaveApply}>
+                    <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.start_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, start_date: e.target.value }))} required />
+                    <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={leaveApplyForm.end_date} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, end_date: e.target.value }))} required />
+                    <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Reason</span><textarea className="input min-h-24 md:col-span-2" value={leaveApplyForm.reason} onChange={(e) => setLeaveApplyForm((s) => ({ ...s, reason: e.target.value }))} required /></label>
+                    <button className="btn-primary md:col-span-2" disabled={busyKey === "apply-leave"}>{busyKey === "apply-leave" ? "Submitting..." : "Submit Application"}</button>
+                  </form>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+            <SectionTitle title="Leave History" />
+            <DataTable columns={leaveColumns} rows={myLeaves} emptyText="No leave history" />
+          </section>
+        </>
+      );
+    })()
   );
 
   return (
-    <div className="dashboard-shell">
+    <div className={`dashboard-shell${isOwnerPortal ? " owner-theme" : ""}`}>
       <DashboardThemeStyles />
     <main className="min-h-screen" style={{ background: "linear-gradient(180deg, #f8fbff 0%, #f3f7fc 100%)" }}>
-      <header className="mb-0 overflow-hidden shadow-xl" style={{ background: "linear-gradient(135deg, #eef4ff 0%, #f8fbff 55%, #ffffff 100%)", borderBottom: "1px solid #d7e4f5", position: "relative" }}>
+      <header className="owner-topbar mb-0 overflow-hidden shadow-xl" style={{ background: "linear-gradient(135deg, #eef4ff 0%, #f8fbff 55%, #ffffff 100%)", borderBottom: "1px solid #d7e4f5", position: "relative" }}>
         <div style={{ position: "absolute", top: -25, right: 80, width: 110, height: 110, borderRadius: "50%", background: "rgba(37,99,235,0.08)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", top: 8, right: 30, width: 55, height: 55, borderRadius: "50%", background: "rgba(59,130,246,0.1)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -15, left: 300, width: 70, height: 70, borderRadius: "50%", background: "rgba(22,163,74,0.09)", pointerEvents: "none" }} />
@@ -3146,7 +4034,7 @@ export default function ManagerDashboardPage() {
       </header>
 
       <div className="grid gap-0 lg:grid-cols-[260px_1fr]" style={{ minHeight: "calc(100vh - 67px)" }}>
-        <aside className="border-r border-blue-100/50 p-5 shadow-sm lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto" style={{ background: "rgba(219, 234, 254, 0.5)", backdropFilter: "blur(10px)" }}>
+        <aside className="owner-sidebar border-r border-blue-100/50 p-5 shadow-sm lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto" style={{ background: "rgba(219, 234, 254, 0.5)", backdropFilter: "blur(10px)" }}>
           <div className="mb-5 pb-5" style={{ borderBottom: "1px solid rgba(30,64,175,0.15)" }}>
             {(() => {
               const sidebarRoleStyles = {
@@ -3171,7 +4059,7 @@ export default function ManagerDashboardPage() {
             {menus.map((item) => (
               <button
                 key={item.id}
-                className="w-full rounded-lg px-4 py-3 text-left text-sm font-bold transition-all"
+                className={`owner-nav-btn w-full rounded-lg px-4 py-3 text-left text-sm font-bold transition-all${activeMenu === item.id ? " owner-nav-btn-active" : ""}`}
                 style={activeMenu === item.id ? {
                   background: "linear-gradient(135deg, #2563eb, #3b82f6)",
                   color: "#fff",
@@ -3203,7 +4091,7 @@ export default function ManagerDashboardPage() {
             };
             const cfg = roleConfigs[roleType] || roleConfigs.employee;
             return (
-              <div className="rounded-2xl shadow-md overflow-hidden" style={{ background: cfg.gradient, position: "relative", border: "1px solid #d9e3f2" }}>
+              <div className="owner-hero rounded-2xl shadow-md overflow-hidden" style={{ background: cfg.gradient, position: "relative", border: "1px solid #d9e3f2" }}>
                 <div style={{ position: "absolute", top: -20, right: 40, width: 100, height: 100, borderRadius: "50%", background: "rgba(37,99,235,0.08)", pointerEvents: "none" }} />
                 <div style={{ position: "absolute", bottom: -10, right: 140, width: 60, height: 60, borderRadius: "50%", background: "rgba(14,165,233,0.08)", pointerEvents: "none" }} />
                 <div className="relative p-5 flex flex-wrap items-center justify-between gap-4">
@@ -3231,103 +4119,119 @@ export default function ManagerDashboardPage() {
             );
           })()}
           {errorText ? <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{errorText}</p> : null}
-          {noticeText ? <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{noticeText}</p> : null}
-          {inviteLink ? (
-            <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
-              <p className="font-semibold">Invite Set-Password Link</p>
-              <a href={inviteLink} className="break-all font-medium underline" target="_blank" rel="noreferrer">{inviteLink}</a>
-            </div>
-          ) : null}
           {activeMenu === "owner-dashboard" ? (
             <>
-              <SectionTitle title="Owner Overview" />
+              <SectionTitle title="Analytics" />
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <StatCard label="Total Clients" value={ownerOverview.total_clients} accent="#1d4ed8" />
-                <StatCard label="Total Employees" value={ownerOverview.total_employees} accent="#1d4ed8" />
-                <StatCard label="Total Projects" value={ownerOverview.total_projects} accent="#2563eb" />
-                <StatCard label="Total Tasks" value={ownerOverview.total_tasks} accent="#2563eb" />
-                <StatCard label="Completed" value={ownerOverview.completed_tasks} accent="#16a34a" />
-                <StatCard label="Pending" value={ownerOverview.pending_tasks} accent="#d97706" />
-                <StatCard label="Completion %" value={ownerOverview.completion_rate} accent="#0891b2" />
-                <StatCard label="Overdue" value={ownerOverview.overdue_tasks} accent="#dc2626" />
+                <StatCard label="Employees" value={ownerOverview.total_employees} accent="#39d39b" />
+                <StatCard label="Projects" value={ownerOverview.total_projects} accent="#4b9ef5" />
+                <StatCard label="Tasks Total" value={ownerOverview.total_tasks} accent="#f4b740" />
+                <StatCard label="Clients" value={ownerOverview.total_clients} accent="#ff6b6b" />
               </div>
-              <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe", borderTop: "3px solid #2563eb" }}>
-                <SectionTitle title="All Tasks" />
-                <DataTable columns={dashboardTaskListColumns} rows={ownerTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
+              <div className="owner-analytics-grid">
+                <section className="rounded-2xl p-5 shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+                  <div className="mb-4 flex items-center justify-between">
+                    <p className="text-sm font-extrabold uppercase tracking-widest text-slate-500">Task Completion</p>
+                    <p className="text-xs font-semibold text-slate-500">Last 6 months</p>
+                  </div>
+                  <div className="flex h-44 items-end gap-3">
+                    {ownerMonthlyCompletion.map((bar) => (
+                      <div key={bar.key} className="flex flex-1 flex-col items-center gap-2">
+                        <div
+                          className="w-full rounded-t-md"
+                          style={{ height: `${bar.height}%`, minHeight: "14px", background: "linear-gradient(180deg, #39d39b, #22b97f)" }}
+                        />
+                        <span className="text-xs font-semibold text-slate-500">{bar.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+                <section className="rounded-2xl p-5 shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+                  <p className="mb-4 text-sm font-extrabold uppercase tracking-widest text-slate-500">Task Status Distribution</p>
+                  <div className="flex flex-wrap items-center gap-6">
+                    <div className="relative h-32 w-32 rounded-full" style={{ background: ownerStatusBreakdown.donut }}>
+                      <div className="absolute inset-4 flex items-center justify-center rounded-full bg-white text-sm font-extrabold text-slate-900">
+                        {ownerOverview.total_tasks || 0}
+                      </div>
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <p><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-emerald-400" />Done - {ownerStatusBreakdown.donePct}%</p>
+                      <p><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-amber-400" />In Progress - {ownerStatusBreakdown.inProgressPct}%</p>
+                      <p><span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-rose-400" />Overdue - {ownerStatusBreakdown.overduePct}%</p>
+                    </div>
+                  </div>
+                </section>
+              </div>
+              <div className="owner-analytics-grid">
+                <section className="rounded-2xl p-5 shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+                  <p className="mb-4 text-sm font-extrabold uppercase tracking-widest text-slate-500">Recent Projects</p>
+                  <div className="space-y-4">
+                    {ownerRecentProjects.map((project) => {
+                      const progress = parseProgressValue(project?.progress);
+                      const status = String(project?.status || "").toUpperCase();
+                      return (
+                        <div key={project?.id || project?.name}>
+                          <div className="mb-2 flex items-center justify-between gap-3">
+                            <p className="font-semibold text-slate-900">{project?.name || "Project"}</p>
+                            <StatusPill value={status || "ACTIVE"} />
+                          </div>
+                          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-2 rounded-full bg-emerald-400" style={{ width: `${progress}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+                <section className="rounded-2xl p-5 shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+                  <p className="mb-4 text-sm font-extrabold uppercase tracking-widest text-slate-500">Recent Activity</p>
+                  <div className="space-y-3">
+                    {ownerRecentActivities.map((task) => (
+                      <div key={task?.id} className="border-b border-slate-200 pb-3 last:border-b-0">
+                        <p className="font-medium text-slate-900">Task "{task?.title || "Task"}"</p>
+                        <p className="text-xs text-slate-500">{formatTimeAgo(task?.updated_at || task?.created_at)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            </>
+          ) : null}
+
+          {activeMenu === "owner-roles" ? (
+            <>
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <SectionTitle title={`All Roles ${roles.length ? `${roles.length} total` : ""}`} />
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 text-sm font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, #16a34a, #34d399)" }}
+                    onClick={() => setShowOwnerCreateRoleModal(true)}
+                  >
+                    + Create Role
+                  </button>
+                </div>
+                <DataTable columns={roleColumns} rows={roles} emptyText="No roles" onRowClick={openRoleDetails} />
               </section>
             </>
           ) : null}
 
-          {activeMenu === "owner-roles" || activeMenu === "manager-roles" || activeMenu === "hr-roles" ? (
+          {activeMenu === "manager-roles" || activeMenu === "hr-roles" ? (
             <>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Role" />
-                <form className="space-y-3" onSubmit={submitCreateRole}>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <label className="space-y-1 text-sm text-slate-700">
-                      <span className="font-medium">Company</span>
-                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.company} onChange={(e) => setCreateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
-                        <option value="">Select company</option>
-                        {companyOptions.map((companyOption) => (
-                          <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.name} onChange={(e) => setCreateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.slug} onChange={(e) => setCreateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createRoleForm.level} onChange={(e) => setCreateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                    {ROLE_PERMISSION_FIELDS.map((field) => (
-                      <label key={field} className="flex items-center gap-2 rounded border border-slate-200 bg-slate-50 p-2 text-sm">
-                        <input type="checkbox" checked={Boolean(createRoleForm[field])} onChange={(e) => setCreateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
-                        <span>{field}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" disabled={busyKey === "create-role"}>{busyKey === "create-role" ? "Saving..." : "Save Role"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="Edit Role" />
-                <form className="space-y-3" onSubmit={submitUpdateRole}>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <label className="space-y-1 text-sm text-slate-700">
-                      <span className="font-medium">Role</span>
-                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.role_id} onChange={(e) => handleUpdateRoleSelection(e.target.value)} required>
-                        <option value="">Select role</option>
-                        {roles.map((role) => (
-                          <option key={role.id} value={role.id}>{role?.name || role?.slug || `Role ${role.id}`}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm text-slate-700">
-                      <span className="font-medium">Company</span>
-                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.company} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
-                        <option value="">Select company</option>
-                        {companyOptions.map((companyOption) => (
-                          <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.name} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.slug} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={updateRoleForm.level} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                    {ROLE_PERMISSION_FIELDS.map((field) => (
-                      <label key={field} className="flex items-center gap-2 rounded border border-slate-200 bg-slate-50 p-2 text-sm">
-                        <input type="checkbox" checked={Boolean(updateRoleForm[field])} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
-                        <span>{field}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" disabled={!updateRoleForm.role_id || busyKey === `update-role-${updateRoleForm.role_id}`}>{busyKey === `update-role-${updateRoleForm.role_id}` ? "Saving..." : "Save Role"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="Role List" />
-                <DataTable columns={roleColumns} rows={roles} emptyText="No roles" />
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <SectionTitle title={`All Roles ${roles.length ? `${roles.length} total` : ""}`} />
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 text-sm font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, #16a34a, #34d399)" }}
+                    onClick={() => setShowOwnerCreateRoleModal(true)}
+                  >
+                    + Create Role
+                  </button>
+                </div>
+                <DataTable columns={roleColumns} rows={roles} emptyText="No roles" onRowClick={openRoleDetails} />
               </section>
             </>
           ) : null}
@@ -3335,33 +4239,17 @@ export default function ManagerDashboardPage() {
           {activeMenu === "owner-users" ? (
             <>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New User" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Company</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
-                      <option value="">Select company</option>
-                      {companyOptions.map((companyOption) => (
-                        <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Role</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
-                      <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
-                      {createUserRoleOptions.map((roleOption) => (
-                        <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save User"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="User List" />
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <SectionTitle title="User List" />
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 text-sm font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, #16a34a, #34d399)" }}
+                    onClick={() => setShowOwnerCreateUserModal(true)}
+                  >
+                    + Create User
+                  </button>
+                </div>
                 <DataTable columns={userListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
               </section>
             </>
@@ -3369,42 +4257,19 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "manager-users" ? (
             <>
-              <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <StatCard label="Total Users" value={managerUserMetrics.total_users} />
-                <StatCard label="Active" value={managerUserMetrics.active_users} />
-                <StatCard label="Managers" value={managerUserMetrics.managers} />
-                <StatCard label="Employees" value={managerUserMetrics.employees} />
-              </section>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New User" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Company</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
-                      <option value="">Select company</option>
-                      {companyOptions.map((companyOption) => (
-                        <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Role</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
-                      <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
-                      {createUserRoleOptions.map((roleOption) => (
-                        <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Save User"}</button>
-                </form>
-              </section>
-              
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="User List" />
-                <DataTable columns={managerUserListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <SectionTitle title="User List" />
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 text-sm font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, #16a34a, #34d399)" }}
+                    onClick={() => setShowOwnerCreateUserModal(true)}
+                  >
+                    + Create User
+                  </button>
+                </div>
+                <DataTable columns={userListColumns} rows={users} emptyText="No users" onRowClick={openUserDetails} />
               </section>
             </>
           ) : null}
@@ -3417,60 +4282,108 @@ export default function ManagerDashboardPage() {
                 <StatCard label="On Hold" value={ownerProjectMetrics.on_hold_projects} />
               </section>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Project" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24 md:col-span-2" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} /></label>
-                  <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> Active</label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="All Projects" />
-                <DataTable columns={managerProjectColumns} rows={ownerProjectsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <SectionTitle title="Projects" />
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 text-sm font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, #16a34a, #34d399)" }}
+                    onClick={() => setShowOwnerCreateProjectModal(true)}
+                  >
+                    + New Project
+                  </button>
+                </div>
+                {ownerProjectsWithProgress.length === 0 ? (
+                  <p className="text-sm text-slate-500">No projects available.</p>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {ownerProjectsWithProgress.map((project) => {
+                      const status = String(project?.status || "").toUpperCase();
+                      const progressNum = parseProgressValue(project?.progress);
+                      return (
+                        <article
+                          key={project?.id || project?.name}
+                          className="owner-project-card rounded-2xl p-5 cursor-pointer"
+                          onClick={() => openProjectDetails(project)}
+                        >
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <h3 className="text-2xl font-extrabold text-slate-900" style={{ fontFamily: "'Georgia', serif" }}>{project?.name || "Project"}</h3>
+                            <StatusPill value={status || "ACTIVE"} />
+                          </div>
+                          <p className="mb-4 text-sm text-slate-500">{String(project?.description || "No description").slice(0, 120)}</p>
+                          <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-2 rounded-full bg-blue-500" style={{ width: `${progressNum}%` }} />
+                          </div>
+                          <div className="mb-4 flex items-center justify-between text-sm text-slate-500">
+                            <span>Priority: {project?.priority || "-"}</span>
+                            <span>Due: {project?.end_date || "-"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button type="button" className="btn-secondary !px-3 !py-1.5 text-xs" onClick={(e) => { e.stopPropagation(); openOwnerProjectEditModal(project); }}>Edit</button>
+                            <button type="button" className="btn !bg-rose-600 !px-3 !py-1.5 text-xs text-white hover:!bg-rose-700" onClick={(e) => { e.stopPropagation(); deleteProjectFromList(project); }}>Delete</button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
               </section>
             </>
           ) : null}
           {activeMenu === "owner-tasks" ? (
             <>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Task" />
-                {permissions.can_assign_task ? (
-                  <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None (No Project)</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Reference Link</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Attachment</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Image</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} /></label>
-                    <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required /></label>
-                    <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>{busyKey === "create-task" ? "Saving..." : "Save Task"}</button>
-                  </form>
-                ) : (
-                  <p className="text-sm text-slate-500">You do not have permission to create tasks.</p>
-                )}
-              </section>
               <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <StatCard label="Total Tasks" value={ownerTaskMetrics.total_tasks} />
                 <StatCard label="Completed" value={ownerTaskMetrics.completed_tasks} />
                 <StatCard label="Overdue" value={ownerTaskMetrics.overdue_tasks} />
               </section>
-              {renderTaskProgressSection()}
-              <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe", borderTop: "3px solid #2563eb" }}>
-                <SectionTitle title="All Tasks" />
-                <DataTable columns={dashboardTaskListColumns} rows={ownerTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
+              <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <SectionTitle title="Tasks by Project" />
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 text-sm font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, #16a34a, #34d399)" }}
+                    onClick={() => setShowOwnerCreateTaskModal(true)}
+                    disabled={!permissions.can_assign_task}
+                  >
+                    + New Task
+                  </button>
+                </div>
+                {ownerTasksGroupedByProject.length === 0 ? (
+                  <p className="text-sm text-slate-500">No tasks available.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {ownerTasksGroupedByProject.map((group) => (
+                      <article key={group.projectId} className="owner-task-group rounded-2xl p-4">
+                        <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-slate-500">{group.projectName}</p>
+                        <div className="space-y-2">
+                          {group.tasks.map((task) => (
+                            <div
+                              key={task?.id}
+                              className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2 last:border-b-0 cursor-pointer"
+                              onClick={() => openTaskDetails(task)}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={String(task?.status || "").toUpperCase() === "COMPLETED"} onChange={(e) => { e.stopPropagation(); toggleTaskCompleted(task, e.target.checked); }} />
+                                <div>
+                                  <p className="font-semibold text-slate-900">{task?.title || "Task"}</p>
+                                  <p className="text-xs text-slate-500">Assigned: {taskUserLabelById[String(getEntityId(task?.assigned_to) || "")] || "-"} · Due: {task?.due_date || "-"}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <StatusPill value={task?.priority || "MEDIUM"} />
+                                <StatusPill value={task?.status || "PENDING"} />
+                                <button type="button" className="btn-secondary !px-2 !py-1 text-xs" onClick={(e) => { e.stopPropagation(); openOwnerTaskEditModal(task); }}>Edit</button>
+                                <button type="button" className="btn !bg-rose-600 !px-2 !py-1 text-xs text-white hover:!bg-rose-700" onClick={(e) => { e.stopPropagation(); deleteTaskFromList(task); }}>Delete</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </section>
             </>
           ) : null}
@@ -3491,6 +4404,182 @@ export default function ManagerDashboardPage() {
               </form>
             </section>
           ) : null}
+
+          <DashboardModal open={showOwnerCreateRoleModal} title="Create Role" onClose={() => setShowOwnerCreateRoleModal(false)}>
+            <form className="space-y-3" onSubmit={submitCreateRole}>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="space-y-1 text-sm text-slate-700">
+                  <span className="font-medium">Company</span>
+                  <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createRoleForm.company} onChange={(e) => setCreateRoleForm((s) => ({ ...s, company: e.target.value }))} required>
+                    <option value="">Select company</option>
+                    {companyOptions.map((companyOption) => (
+                      <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createRoleForm.name} onChange={(e) => setCreateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createRoleForm.slug} onChange={(e) => setCreateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createRoleForm.level} onChange={(e) => setCreateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                {ROLE_PERMISSION_FIELDS.map((field) => (
+                  <label key={field} className="flex items-center gap-2 rounded border border-slate-200 bg-slate-50 p-2 text-sm">
+                    <input type="checkbox" checked={Boolean(createRoleForm[field])} onChange={(e) => setCreateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
+                    <span>{field}</span>
+                  </label>
+                ))}
+              </div>
+              <button className="btn-primary w-full" disabled={busyKey === "create-role"}>{busyKey === "create-role" ? "Saving..." : "Save Role"}</button>
+            </form>
+          </DashboardModal>
+
+          <DashboardModal open={showOwnerEditRoleModal} title="Edit Role" onClose={() => setShowOwnerEditRoleModal(false)}>
+            <form className="space-y-3" onSubmit={submitUpdateRole}>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="space-y-1 text-sm text-slate-700">
+                  <span className="font-medium">Role</span>
+                  <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={updateRoleForm.role_id} onChange={(e) => handleUpdateRoleSelection(e.target.value)} required>
+                    <option value="">Select role</option>
+                    {roles.map((role) => (
+                      <option key={role.id} value={role.id}>{role?.name || role?.slug || `Role ${role.id}`}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={updateRoleForm.name} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, name: e.target.value }))} required /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Slug</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={updateRoleForm.slug} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, slug: e.target.value }))} /></label>
+                <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Level</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={updateRoleForm.level} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, level: e.target.value }))} required /></label>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                {ROLE_PERMISSION_FIELDS.map((field) => (
+                  <label key={field} className="flex items-center gap-2 rounded border border-slate-200 bg-slate-50 p-2 text-sm">
+                    <input type="checkbox" checked={Boolean(updateRoleForm[field])} onChange={(e) => setUpdateRoleForm((s) => ({ ...s, [field]: e.target.checked }))} />
+                    <span>{field}</span>
+                  </label>
+                ))}
+              </div>
+              <button className="btn-primary w-full" disabled={!updateRoleForm.role_id || busyKey === `update-role-${updateRoleForm.role_id}`}>{busyKey === `update-role-${updateRoleForm.role_id}` ? "Saving..." : "Save Role"}</button>
+            </form>
+          </DashboardModal>
+
+          <DashboardModal open={showOwnerCreateUserModal} title="Create User" onClose={() => setShowOwnerCreateUserModal(false)}>
+            <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateUser}>
+              <label className="space-y-1 text-sm text-slate-700">
+                <span className="font-medium">Company</span>
+                <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
+                  <option value="">Select company</option>
+                  {companyOptions.map((companyOption) => (
+                    <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
+              <label className="space-y-1 text-sm text-slate-700">
+                <span className="font-medium">Role</span>
+                <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
+                  <option value="">{createUserRoleOptions.length ? "Select role" : "Select company first"}</option>
+                  {createUserRoleOptions.map((roleOption) => (
+                    <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
+                  ))}
+                </select>
+              </label>
+              <button className="btn-primary md:col-span-2" disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Create User"}</button>
+            </form>
+          </DashboardModal>
+
+          <DashboardModal
+            open={detailsModal.open}
+            title={detailsModal.title}
+            onClose={() => setDetailsModal({ open: false, title: "Details", entityType: "", entity: null, loading: false, error: "" })}
+            maxWidth="max-w-5xl"
+          >
+            {detailsModal.loading ? <p className="text-sm text-slate-500">Loading details...</p> : null}
+            {!detailsModal.loading && detailsModal.error ? <p className="text-sm text-rose-600">{detailsModal.error}</p> : null}
+            {!detailsModal.loading && !detailsModal.error ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                {detailsFieldEntries.map(([fieldKey, fieldValue]) => (
+                  <article key={fieldKey} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-bold uppercase tracking-widest text-blue-900/55">{humanizeDetailLabel(fieldKey)}</p>
+                    <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-800">{formatDetailValue(fieldValue)}</pre>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </DashboardModal>
+
+          <DashboardModal open={showOwnerCreateProjectModal} title="Create Project" onClose={() => setShowOwnerCreateProjectModal(false)}>
+            <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
+              <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24 md:col-span-2" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} /></label>
+              <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> Active</label>
+              <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
+            </form>
+          </DashboardModal>
+
+          <DashboardModal open={showOwnerEditProjectModal} title="Edit Project" onClose={() => setShowOwnerEditProjectModal(false)}>
+            <form className="grid gap-3 md:grid-cols-2" onSubmit={submitUpdateProject}>
+              <label className="space-y-1 text-sm text-slate-700 md:col-span-2">
+                <span className="font-medium">Project</span>
+                <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={updateProjectForm.project_id} onChange={(e) => handleManagerProjectSelection(e.target.value)} required>
+                  <option value="">Select project</option>
+                  {ownerProjectsWithProgress.map((project) => (
+                    <option key={project.id} value={project.id}>{project?.name || `Project ${project.id}`}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={updateProjectForm.name} onChange={(e) => setUpdateProjectForm((s) => ({ ...s, name: e.target.value }))} /></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={updateProjectForm.status} onChange={(e) => setUpdateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={updateProjectForm.priority} onChange={(e) => setUpdateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" type="date" value={updateProjectForm.start_date} onChange={(e) => setUpdateProjectForm((s) => ({ ...s, start_date: e.target.value }))} /></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" type="date" value={updateProjectForm.end_date} onChange={(e) => setUpdateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
+              <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={updateProjectForm.description} onChange={(e) => setUpdateProjectForm((s) => ({ ...s, description: e.target.value }))} /></label>
+              <button className="btn-primary md:col-span-2" disabled={busyKey === "update-project"}>{busyKey === "update-project" ? "Saving..." : "Save Changes"}</button>
+            </form>
+          </DashboardModal>
+
+          <DashboardModal open={showOwnerCreateTaskModal} title="Create Task" onClose={() => setShowOwnerCreateTaskModal(false)}>
+            <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
+              <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required /></label>
+              <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>{busyKey === "create-task" ? "Saving..." : "Save Task"}</button>
+            </form>
+          </DashboardModal>
+
+          <DashboardModal open={showOwnerEditTaskModal} title="Edit Task" onClose={() => setShowOwnerEditTaskModal(false)}>
+            <form className="grid gap-3 md:grid-cols-2" onSubmit={submitOwnerUpdateTask}>
+              <label className="space-y-1 text-sm text-slate-700 md:col-span-2">
+                <span className="font-medium">Task</span>
+                <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={ownerUpdateTaskForm.task_id} onChange={(e) => handleOwnerTaskSelection(e.target.value)} required>
+                  <option value="">Select task</option>
+                  {ownerTaskOptions.map((task) => (
+                    <option key={task.id} value={task.id}>{task?.title || `Task ${task.id}`}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={ownerUpdateTaskForm.title} onChange={(e) => setOwnerUpdateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assigned To</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={ownerUpdateTaskForm.assigned_to} onChange={(e) => setOwnerUpdateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={ownerUpdateTaskForm.status} onChange={(e) => setOwnerUpdateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={ownerUpdateTaskForm.priority} onChange={(e) => setOwnerUpdateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" value={ownerUpdateTaskForm.progress} onChange={(e) => setOwnerUpdateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
+              <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none" type="date" value={ownerUpdateTaskForm.due_date} onChange={(e) => setOwnerUpdateTaskForm((s) => ({ ...s, due_date: e.target.value }))} /></label>
+              <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={ownerUpdateTaskForm.description} onChange={(e) => setOwnerUpdateTaskForm((s) => ({ ...s, description: e.target.value }))} required /></label>
+              <button className="btn-primary md:col-span-2" disabled={busyKey === "owner-update-task"}>{busyKey === "owner-update-task" ? "Saving..." : "Save Task"}</button>
+            </form>
+          </DashboardModal>
 
           {activeMenu === "manager-dashboard" ? (
             <>
@@ -3525,6 +4614,20 @@ export default function ManagerDashboardPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                <AnalyticsBarChart
+                  title="Task Pipeline"
+                  subtitle="Manager task status snapshot"
+                  bars={managerTaskStatusChart}
+                />
+                <AnalyticsDonutCard
+                  title="Project Mix"
+                  subtitle="Active vs completed vs on hold"
+                  total={managerOverviewCards.total_projects}
+                  segments={managerProjectStatusChart}
+                />
               </div>
 
               {/* Projects full width */}
@@ -3572,25 +4675,51 @@ export default function ManagerDashboardPage() {
                 <StatCard label="On Hold" value={managerProjectMetrics.on_hold_projects} />
               </section>
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Project" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateProject}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.name} onChange={(e) => setCreateProjectForm((s) => ({ ...s, name: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Manager</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.manager} onChange={(e) => setCreateProjectForm((s) => ({ ...s, manager: e.target.value }))}><option value="">Select manager</option>{managerUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Client</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.client} onChange={(e) => setCreateProjectForm((s) => ({ ...s, client: e.target.value }))}><option value="">Select client</option>{clientUserOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.status} onChange={(e) => setCreateProjectForm((s) => ({ ...s, status: e.target.value }))}><option value="ACTIVE">Active</option><option value="COMPLETED">Completed</option><option value="ON_HOLD">On Hold</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.priority} onChange={(e) => setCreateProjectForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Start Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.start_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, start_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">End Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createProjectForm.end_date} onChange={(e) => setCreateProjectForm((s) => ({ ...s, end_date: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Budget</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.budget} onChange={(e) => setCreateProjectForm((s) => ({ ...s, budget: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Actual Cost</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createProjectForm.actual_cost} onChange={(e) => setCreateProjectForm((s) => ({ ...s, actual_cost: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24 md:col-span-2" value={createProjectForm.description} onChange={(e) => setCreateProjectForm((s) => ({ ...s, description: e.target.value }))} /></label>
-                  <label className="md:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={createProjectForm.is_active} onChange={(e) => setCreateProjectForm((s) => ({ ...s, is_active: e.target.checked }))} /> Active</label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-project"}>{busyKey === "create-project" ? "Saving..." : "Save Project"}</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="Project List" />
-                <DataTable columns={managerProjectColumns} rows={managerProjectRowsWithProgress} emptyText="No projects" onRowClick={openProjectDetails} />
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <SectionTitle title="Projects" />
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 text-sm font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, #16a34a, #34d399)" }}
+                    onClick={() => setShowOwnerCreateProjectModal(true)}
+                  >
+                    + New Project
+                  </button>
+                </div>
+                {managerProjectRowsWithProgress.length === 0 ? (
+                  <p className="text-sm text-slate-500">No projects available.</p>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {managerProjectRowsWithProgress.map((project) => {
+                      const status = String(project?.status || "").toUpperCase();
+                      const progressNum = parseProgressValue(project?.progress);
+                      return (
+                        <article
+                          key={project?.id || project?.name}
+                          className="owner-project-card rounded-2xl p-5 cursor-pointer"
+                          onClick={() => openProjectDetails(project)}
+                        >
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <h3 className="text-2xl font-extrabold text-slate-900" style={{ fontFamily: "'Georgia', serif" }}>{project?.name || "Project"}</h3>
+                            <StatusPill value={status || "ACTIVE"} />
+                          </div>
+                          <p className="mb-4 text-sm text-slate-500">{String(project?.description || "No description").slice(0, 120)}</p>
+                          <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-2 rounded-full bg-blue-500" style={{ width: `${progressNum}%` }} />
+                          </div>
+                          <div className="mb-4 flex items-center justify-between text-sm text-slate-500">
+                            <span>Priority: {project?.priority || "-"}</span>
+                            <span>Due: {project?.end_date || "-"}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button type="button" className="btn-secondary !px-3 !py-1.5 text-xs" onClick={(e) => { e.stopPropagation(); openOwnerProjectEditModal(project); }}>Edit</button>
+                            <button type="button" className="btn !bg-rose-600 !px-3 !py-1.5 text-xs text-white hover:!bg-rose-700" onClick={(e) => { e.stopPropagation(); deleteProjectFromList(project); }}>Delete</button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
               </section>
             </>
           ) : null}
@@ -3601,26 +4730,53 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={managerTaskMetrics.completed_tasks} />
                 <StatCard label="Overdue" value={managerTaskMetrics.overdue_tasks} />
               </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="New Task" />
-                <form className="grid gap-3 md:grid-cols-2" onSubmit={submitCreateTask}>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Title</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.title} onChange={(e) => setCreateTaskForm((s) => ({ ...s, title: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Assign To</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.assigned_to} onChange={(e) => setCreateTaskForm((s) => ({ ...s, assigned_to: e.target.value }))} required><option value="">Select employee</option>{createTaskAssigneeOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Project</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.project} onChange={(e) => setCreateTaskForm((s) => ({ ...s, project: e.target.value }))}><option value="">None (No Project)</option>{createTaskProjectOptions.map((option) => (<option key={option.id} value={option.id}>{option.label}</option>))}</select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Due Date</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="date" value={createTaskForm.due_date} onChange={(e) => setCreateTaskForm((s) => ({ ...s, due_date: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Status</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.status} onChange={(e) => setCreateTaskForm((s) => ({ ...s, status: e.target.value }))}><option value="PENDING">Pending</option><option value="IN_PROGRESS">In Progress</option><option value="COMPLETED">Completed</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Priority</span><select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.priority} onChange={(e) => setCreateTaskForm((s) => ({ ...s, priority: e.target.value }))}><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Progress</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.progress} onChange={(e) => setCreateTaskForm((s) => ({ ...s, progress: e.target.value }))} required /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Reference Link</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createTaskForm.reference_link} onChange={(e) => setCreateTaskForm((s) => ({ ...s, reference_link: e.target.value }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Attachment</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" onChange={(e) => setCreateTaskForm((s) => ({ ...s, attachment: e.target.files?.[0] || null }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700"><span className="font-medium">Image</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="file" accept="image/*" onChange={(e) => setCreateTaskForm((s) => ({ ...s, image: e.target.files?.[0] || null }))} /></label>
-                  <label className="space-y-1 text-sm text-slate-700 md:col-span-2"><span className="font-medium">Description</span><textarea className="input min-h-24" value={createTaskForm.description} onChange={(e) => setCreateTaskForm((s) => ({ ...s, description: e.target.value }))} required /></label>
-                  <button className="btn-primary md:col-span-2" disabled={busyKey === "create-task"}>Save Task</button>
-                </form>
-              </section>
-              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-                <SectionTitle title="Task List" />
-                <DataTable columns={dashboardTaskListColumns} rows={managerVisibleTaskRows} emptyText="No tasks" onRowClick={openTaskDetails} />
+              <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <SectionTitle title="Tasks by Project" />
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 text-sm font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, #16a34a, #34d399)" }}
+                    onClick={() => setShowOwnerCreateTaskModal(true)}
+                    disabled={!permissions.can_assign_task}
+                  >
+                    + New Task
+                  </button>
+                </div>
+                {managerTasksGroupedByProject.length === 0 ? (
+                  <p className="text-sm text-slate-500">No tasks available.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {managerTasksGroupedByProject.map((group) => (
+                      <article key={group.projectId} className="owner-task-group rounded-2xl p-4">
+                        <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-slate-500">{group.projectName}</p>
+                        <div className="space-y-2">
+                          {group.tasks.map((task) => (
+                            <div
+                              key={task?.id}
+                              className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2 last:border-b-0 cursor-pointer"
+                              onClick={() => openTaskDetails(task)}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={String(task?.status || "").toUpperCase() === "COMPLETED"} onChange={(e) => { e.stopPropagation(); toggleTaskCompleted(task, e.target.checked); }} />
+                                <div>
+                                  <p className="font-semibold text-slate-900">{task?.title || "Task"}</p>
+                                  <p className="text-xs text-slate-500">Assigned: {taskUserLabelById[String(getEntityId(task?.assigned_to) || "")] || "-"} · Due: {task?.due_date || "-"}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <StatusPill value={task?.priority || "MEDIUM"} />
+                                <StatusPill value={task?.status || "PENDING"} />
+                                <button type="button" className="btn-secondary !px-2 !py-1 text-xs" onClick={(e) => { e.stopPropagation(); openOwnerTaskEditModal(task); }}>Edit</button>
+                                <button type="button" className="btn !bg-rose-600 !px-2 !py-1 text-xs text-white hover:!bg-rose-700" onClick={(e) => { e.stopPropagation(); deleteTaskFromList(task); }}>Delete</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </section>
             </>
           ) : null}
@@ -3665,28 +4821,73 @@ export default function ManagerDashboardPage() {
                 </div>
               </div>
 
-              {/* Projects full width */}
-              <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
-                <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #7c3aed15, #7c3aed08)", borderBottom: "2px solid #7c3aed" }}>
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#7c3aed" }} />
-                  <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Projects</span>
-                  <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#ede9fe", color: "#7c3aed" }}>{employeeAssignedProjectRows.length}</span>
-                </div>
-                <div className="p-4">
-                  <DataTable columns={projectColumns} rows={employeeAssignedProjectRows} emptyText="No assigned projects" />
-                </div>
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="My Projects" />
+                {employeeAssignedProjectRows.length === 0 ? (
+                  <p className="text-sm text-slate-500">No assigned projects.</p>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {employeeAssignedProjectRows.map((project) => {
+                      const status = String(project?.status || "").toUpperCase();
+                      const progressNum = parseProgressValue(project?.progress);
+                      return (
+                        <article
+                          key={project?.id || project?.name}
+                          className="owner-project-card rounded-2xl p-5 cursor-pointer"
+                          onClick={() => openProjectDetails(project)}
+                        >
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <h3 className="text-2xl font-extrabold text-slate-900" style={{ fontFamily: "'Georgia', serif" }}>{project?.name || "Project"}</h3>
+                            <StatusPill value={status || "ACTIVE"} />
+                          </div>
+                          <p className="mb-4 text-sm text-slate-500">{String(project?.description || "No description").slice(0, 120)}</p>
+                          <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-2 rounded-full bg-blue-500" style={{ width: `${progressNum}%` }} />
+                          </div>
+                          <div className="text-sm text-slate-500">
+                            <span>Due: {project?.end_date || "-"}</span>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
               </section>
 
-              {/* Tasks full width */}
-              <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
-                <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #2563eb15, #2563eb08)", borderBottom: "2px solid #2563eb" }}>
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#2563eb" }} />
-                  <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>My Tasks</span>
-                  <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: "#1d4ed8" }}>{employeeTasks.length}</span>
-                </div>
-                <div className="p-4">
-                  <DataTable columns={dashboardTaskListColumns} rows={employeeTasks} emptyText="No tasks" onRowClick={openTaskDetails} />
-                </div>
+              <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+                <SectionTitle title="My Tasks" />
+                {employeeTasksGroupedByProject.length === 0 ? (
+                  <p className="text-sm text-slate-500">No tasks available.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {employeeTasksGroupedByProject.map((group) => (
+                      <article key={group.projectId} className="owner-task-group rounded-2xl p-4">
+                        <p className="mb-3 text-xs font-extrabold uppercase tracking-widest text-slate-500">{group.projectName}</p>
+                        <div className="space-y-2">
+                          {group.tasks.map((task) => (
+                            <div
+                              key={task?.id}
+                              className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-2 last:border-b-0 cursor-pointer"
+                              onClick={() => openTaskDetails(task)}
+                            >
+                              <div className="flex items-center gap-3">
+                                <input type="checkbox" className="h-4 w-4 accent-emerald-500" checked={String(task?.status || "").toUpperCase() === "COMPLETED"} onChange={(e) => { e.stopPropagation(); toggleTaskCompleted(task, e.target.checked); }} />
+                                <div>
+                                  <p className="font-semibold text-slate-900">{task?.title || "Task"}</p>
+                                  <p className="text-xs text-slate-500">Due: {task?.due_date || "-"}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <StatusPill value={task?.priority || "MEDIUM"} />
+                                <StatusPill value={task?.status || "PENDING"} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </section>
             </>
           ) : null}
@@ -3749,55 +4950,45 @@ export default function ManagerDashboardPage() {
                 </div>
               </div>
 
-              {/* Add Employee + User List side by side */}
-              <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
-                <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
-                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #16a34a15, #16a34a08)", borderBottom: "2px solid #16a34a" }}>
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#16a34a" }} />
-                    <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Add Employee</span>
-                  </div>
-                  <div className="p-4">
-                    <form className="space-y-3" onSubmit={submitCreateUser}>
-                      <label className="block space-y-1 text-sm text-slate-700">
-                        <span className="font-semibold text-blue-900">Company</span>
-                        <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.company_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, company_id: e.target.value, role_id: "" }))} required>
-                          <option value="">Select company</option>
-                          {companyOptions.map((companyOption) => (
-                            <option key={companyOption.id} value={companyOption.id}>{companyOption.label}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="block space-y-1 text-sm text-slate-700"><span className="font-semibold text-blue-900">First Name</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.first_name} onChange={(e) => setCreateUserForm((s) => ({ ...s, first_name: e.target.value }))} required /></label>
-                      <label className="block space-y-1 text-sm text-slate-700"><span className="font-semibold text-blue-900">Email</span><input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" type="email" value={createUserForm.email} onChange={(e) => setCreateUserForm((s) => ({ ...s, email: e.target.value }))} required /></label>
-                      <label className="block space-y-1 text-sm text-slate-700">
-                        <span className="font-semibold text-blue-900">Role</span>
-                        <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={createUserForm.role_id} onChange={(e) => setCreateUserForm((s) => ({ ...s, role_id: e.target.value }))} disabled={!createUserRoleOptions.length} required>
-                          <option value="">{createUserRoleOptions.length ? "Select role" : "No roles available"}</option>
-                          {createUserRoleOptions.map((roleOption) => (
-                            <option key={roleOption.id} value={roleOption.id}>{roleOption.label}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <button className="w-full rounded-lg py-2.5 text-sm font-extrabold text-white transition disabled:opacity-60" style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }} disabled={busyKey === "create-user" || !createUserRoleOptions.length}>{busyKey === "create-user" ? "Saving..." : "Add Employee"}</button>
-                    </form>
-                  </div>
-                </section>
-                <section className="rounded-2xl bg-white shadow-sm overflow-hidden" style={{ border: "1px solid #dbeafe" }}>
-                  <div className="px-4 py-3 flex items-center gap-2" style={{ background: "linear-gradient(90deg, #1d4ed815, #1d4ed808)", borderBottom: "2px solid #1d4ed8" }}>
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#1d4ed8" }} />
-                    <span className="text-sm font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Employee Directory</span>
-                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: "#1d4ed8" }}>{hrVisibleUsers.length}</span>
-                  </div>
-                  <div className="p-4">
-                    <DataTable columns={userListColumns} rows={hrVisibleUsers} emptyText="No users" onRowClick={openUserDetails} />
-                  </div>
-                </section>
+              <div className="grid gap-4 xl:grid-cols-3">
+                <AnalyticsBarChart
+                  title="Attendance Graph"
+                  subtitle="Today's attendance breakup"
+                  bars={hrAttendanceChart}
+                />
+                <AnalyticsDonutCard
+                  title="Leave Mix"
+                  subtitle="Approved, pending and rejected requests"
+                  total={(hrOverview.leave_summary?.approved || 0) + (hrOverview.leave_summary?.pending || 0) + (hrOverview.leave_summary?.rejected || 0)}
+                  segments={hrLeaveChart}
+                />
+                <AnalyticsBarChart
+                  title="Department Spread"
+                  subtitle="Top departments by headcount"
+                  bars={hrDepartmentChart}
+                />
               </div>
+
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <SectionTitle title="User List" />
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 text-sm font-bold text-white"
+                    style={{ background: "linear-gradient(135deg, #16a34a, #34d399)" }}
+                    onClick={() => setShowOwnerCreateUserModal(true)}
+                  >
+                    + Create User
+                  </button>
+                </div>
+                <DataTable columns={userListColumns} rows={hrVisibleUsers} emptyText="No users" onRowClick={openUserDetails} />
+              </section>
             </>
           ) : null}
 
           {activeMenu === "hr-attendance" ? (
             <>
+              {renderAttendanceAndLeaveSections()}
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <SectionTitle title="Attendance List" />
                 <DataTable columns={hrAttendanceColumns} rows={attendanceRecords} emptyText="No attendance records" />
@@ -3864,75 +5055,45 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "client-dashboard" ? (
             <>
-              {/* Client portfolio header */}
-              <div className="rounded-2xl overflow-hidden shadow-sm" style={{ border: "1px solid #dbeafe" }}>
-                <div className="px-6 py-4 flex items-center justify-between" style={{ background: "linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%)", border: "1px solid #bfdbfe" }}>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "#1d4ed8" }}>Project Portfolio</p>
-                    <p className="text-xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>Your Active Projects</p>
+              <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="Total Projects" value={clientProjectsWithProgress.length} />
+                <StatCard label="Active" value={clientProjectsWithProgress.filter((p) => String(p?.status || "").toUpperCase() === "ACTIVE").length} />
+                <StatCard label="Completed" value={clientProjectsWithProgress.filter((p) => String(p?.status || "").toUpperCase() === "COMPLETED").length} />
+                <StatCard label="On Hold" value={clientProjectsWithProgress.filter((p) => String(p?.status || "").toUpperCase() === "ON_HOLD").length} />
+              </section>
+              <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                <SectionTitle title="Projects" />
+                {clientProjectsWithProgress.length === 0 ? (
+                  <p className="text-sm text-slate-500">No projects assigned yet.</p>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {clientProjectsWithProgress.map((project) => {
+                      const status = String(project?.status || "").toUpperCase();
+                      const progressNum = parseProgressValue(project?.progress);
+                      return (
+                        <article
+                          key={project?.id || project?.name}
+                          className="owner-project-card rounded-2xl p-5 cursor-pointer"
+                          onClick={() => openProjectDetails(project)}
+                        >
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <h3 className="text-2xl font-extrabold text-slate-900" style={{ fontFamily: "'Georgia', serif" }}>{project?.name || "Project"}</h3>
+                            <StatusPill value={status || "ACTIVE"} />
+                          </div>
+                          <p className="mb-4 text-sm text-slate-500">{String(project?.description || "No description").slice(0, 120)}</p>
+                          <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-2 rounded-full bg-blue-500" style={{ width: `${progressNum}%` }} />
+                          </div>
+                          <div className="mb-1 flex items-center justify-between text-sm text-slate-500">
+                            <span>Priority: {project?.priority || "-"}</span>
+                            <span>Due: {project?.end_date || "-"}</span>
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
-                  <div className="text-right">
-                    <span className="text-4xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>{clientProjectsWithProgress.length}</span>
-                    <p className="text-xs font-semibold mt-0.5 text-blue-600">total projects</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Project cards grid */}
-              {clientProjectsWithProgress.length === 0 ? (
-                <div className="rounded-2xl bg-white p-10 text-center shadow-sm" style={{ border: "1px solid #dbeafe" }}>
-                  <div className="h-12 w-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: "#dbeafe" }}><svg width="24" height="24" fill="none" stroke="#1d4ed8" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg></div>
-                  <p className="text-base font-bold text-blue-900">No projects assigned yet</p>
-                  <p className="text-sm text-slate-500 mt-1">Your projects will appear here once assigned.</p>
-                </div>
-              ) : (
-                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-2">
-                  {clientProjectsWithProgress.map((project) => {
-                    const status = String(project?.status || "").toUpperCase();
-                    const statusColors = {
-                      ACTIVE: { bg: "#f0fdf4", text: "#16a34a", border: "#16a34a" },
-                      COMPLETED: { bg: "#eff6ff", text: "#2563eb", border: "#2563eb" },
-                      ON_HOLD: { bg: "#fffbeb", text: "#d97706", border: "#d97706" },
-                    };
-                    const sc = statusColors[status] || { bg: "#f8fafc", text: "#64748b", border: "#94a3b8" };
-                    const progress = project?.progress || "0%";
-                    const progressNum = parseInt(String(progress).replace("%", "").split("(")[0].trim()) || 0;
-                    return (
-                      <article
-                        key={project.id}
-                        className="rounded-2xl bg-white overflow-hidden shadow-sm cursor-pointer transition-all hover:shadow-md"
-                        style={{ border: "1px solid #dbeafe", borderTop: `3px solid ${sc.border}` }}
-                        onClick={() => openProjectDetails && openProjectDetails(project)}
-                      >
-                        <div className="p-6">
-                          <div className="flex items-start justify-between gap-2 mb-4">
-                            <h3 className="font-extrabold text-blue-900 text-lg leading-tight" style={{ fontFamily: "'Georgia', serif" }}>{project.name || "Project"}</h3>
-                            <span className="flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: sc.bg, color: sc.text }}>{status || "—"}</span>
-                          </div>
-                          {project.description ? (
-                            <p className="text-sm text-slate-500 mb-4 line-clamp-3">{project.description}</p>
-                          ) : null}
-                          <div className="space-y-2 text-sm text-slate-500 mb-4">
-                            {project.start_date ? <p><span className="font-bold text-slate-400 uppercase tracking-wide text-xs">Start</span> <span className="font-semibold text-slate-700">{project.start_date}</span></p> : null}
-                            {project.end_date ? <p><span className="font-bold text-slate-400 uppercase tracking-wide text-xs">Due</span> <span className="font-semibold text-slate-700">{project.end_date}</span></p> : null}
-                            {project.priority ? <p><span className="font-bold text-slate-400 uppercase tracking-wide text-xs">Priority</span> <span className="font-semibold text-slate-700">{project.priority}</span></p> : null}
-                          </div>
-                          {/* Progress bar */}
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-bold text-blue-900/50 uppercase tracking-widest">Progress</span>
-                              <span className="text-xs font-extrabold" style={{ color: sc.border }}>{progress}</span>
-                            </div>
-                            <div className="h-2 rounded-full bg-blue-100 overflow-hidden">
-                              <div className="h-2 rounded-full transition-all" style={{ width: `${Math.min(progressNum, 100)}%`, background: sc.border }} />
-                            </div>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
+                )}
+              </section>
             </>
           ) : null}
         </section>
@@ -3941,4 +5102,5 @@ export default function ManagerDashboardPage() {
     </div>
   );
 }
+
 

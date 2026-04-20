@@ -174,7 +174,7 @@ export default function ProjectDetailsPage() {
       company: user?.company || "-"
     };
 
-    return Object.entries(normalized).filter(([key]) => key !== "id");
+    return Object.entries(normalized);
   }, [clientLabel, managerLabel, project, user]);
 
   const submitUpdate = async (event) => {
@@ -217,13 +217,13 @@ export default function ProjectDetailsPage() {
   };
 
   return (
-    <main className="min-h-screen p-4 md:p-6" style={{ background: "linear-gradient(135deg, #e8eef8 0%, #dce6f5 100%)" }}>
+    <main className="dashboard-shell min-h-screen p-4 md:p-6">
       <section className="mx-auto max-w-6xl space-y-4">
-        <header className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+        <header className="rounded-2xl border bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-blue-900/50">Project Details</p>
-              <h1 className="text-2xl font-bold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>{project?.name || "Project"}</h1>
+              <h1 className="text-2xl font-bold text-blue-900">{project?.name || "Project"}</h1>
               <p className="mt-1 text-sm text-slate-500">Description opens here and editing is available on click.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -254,7 +254,7 @@ export default function ProjectDetailsPage() {
         {!loading && !errorText && project ? (
           <>
             <section className="grid gap-4 lg:grid-cols-[1.4fr_0.9fr]">
-              <article className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+              <article className="rounded-2xl border bg-white p-4 shadow-sm">
                 <h2 className="text-base font-bold text-blue-900">Summary</h2>
                 <div className="mt-3 space-y-2 text-sm text-slate-700">
                   <p><span className="font-semibold">Description:</span> {project.description || "-"}</p>
@@ -276,7 +276,7 @@ export default function ProjectDetailsPage() {
             </section>
 
             {showEditForm ? (
-              <section className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+              <section className="rounded-2xl border bg-white p-4 shadow-sm">
                 <h2 className="text-base font-bold text-blue-900">Edit Project</h2>
                 <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={submitUpdate}>
                   <label className="space-y-1 text-sm text-slate-700">
@@ -346,7 +346,7 @@ export default function ProjectDetailsPage() {
               </section>
             ) : null}
 
-            <section className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+            <section className="rounded-2xl border bg-white p-4 shadow-sm">
               <h2 className="text-base font-bold text-blue-900">Project Details</h2>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {visibleProjectFields.map(([key, value]) => (

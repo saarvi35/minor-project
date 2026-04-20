@@ -1,7 +1,7 @@
 import axios from "axios";
 import { clearAuthStorage, getRefreshToken, getToken, updateAccessToken } from "./auth";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://workbridge-smart-enterprise-platform1.onrender.com/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
 const REFRESH_PATH = import.meta.env.VITE_TOKEN_REFRESH_PATH || "/token/refresh/";
 
 const api = axios.create({ baseURL: API_BASE_URL });

@@ -47,6 +47,11 @@ export default function UserDetailsPage() {
   const [loading, setLoading] = useState(!routeUser);
   const [saving, setSaving] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [detailsTitle, setDetailsTitle] = useState("Details");
+  const [detailsRows, setDetailsRows] = useState([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState("");
   const [errorText, setErrorText] = useState("");
   const [noticeText, setNoticeText] = useState("");
 
@@ -161,7 +166,7 @@ setLoading(false);
       assigned_tasks: assignedTasks.length
     };
 
-    return Object.entries(normalized).filter(([key]) => key !== "id");
+    return Object.entries(normalized);
   }, [assignedTasks.length, resolvedRole, user, userRow]);
 
   const submitUpdate = async (event) => {
@@ -195,14 +200,35 @@ setLoading(false);
     }
   };
 
+  const openTaskDetailsModal = async (task) => {
+    const taskId = String(task?.id || "").trim();
+    setShowDetailsModal(true);
+    setDetailsLoading(Boolean(taskId));
+    setDetailsError("");
+    setDetailsTitle(String(task?.title || "Task Details"));
+    setDetailsRows(Object.entries(task || {}));
+
+    if (!taskId) return;
+
+    try {
+      const detail = await getData(`/tasks/${taskId}/`);
+      setDetailsTitle(String(detail?.title || "Task Details"));
+      setDetailsRows(Object.entries(detail || {}));
+      setDetailsLoading(false);
+    } catch {
+      setDetailsLoading(false);
+      setDetailsError("Unable to fetch full task details.");
+    }
+  };
+
   return (
-    <main className="min-h-screen p-4 md:p-6" style={{ background: "linear-gradient(135deg, #e8eef8 0%, #dce6f5 100%)" }}>
+    <main className="dashboard-shell min-h-screen p-4 md:p-6">
       <section className="mx-auto max-w-6xl space-y-4">
-        <header className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+        <header className="rounded-2xl border bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-blue-900/50">User Details</p>
-              <h1 className="text-2xl font-bold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>{userRow?.name || "User"}</h1>
+              <h1 className="text-2xl font-bold text-blue-900">{userRow?.name || "User"}</h1>
               <p className="mt-1 text-sm text-slate-500">Important list fields stay on the table. Full available details open here.</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -233,7 +259,7 @@ setLoading(false);
         {!loading && !errorText && userRow ? (
           <>
             <section className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-              <article className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+              <article className="rounded-2xl border bg-white p-4 shadow-sm">
                 <h2 className="text-base font-bold text-blue-900">Summary</h2>
                 <div className="mt-3 space-y-2 text-sm text-slate-700">
                   <p><span className="font-semibold">Name:</span> {userRow.name || "-"}</p>
@@ -246,7 +272,7 @@ setLoading(false);
                 </div>
               </article>
 
-              <article className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+              <article className="rounded-2xl border bg-white p-4 shadow-sm">
                 <h2 className="text-base font-bold text-blue-900">Assigned Tasks</h2>
                 <div className="mt-3 space-y-3 text-sm text-slate-700">
                   {!assignedTasks.length ? <p className="text-slate-500">No assigned tasks found.</p> : null}
@@ -255,7 +281,7 @@ setLoading(false);
                       key={task.id}
                       type="button"
                       className="block w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-left hover:border-sky-300 hover:bg-sky-50"
-                      onClick={() => navigate(`/task/${task.id}`, { state: { task } })}
+                      onClick={() => openTaskDetailsModal(task)}
                     >
                       <p className="font-semibold text-slate-900">{task.title || "Task"}</p>
                       <p className="mt-1 text-slate-600">Status: {task.status || "-"}</p>
@@ -267,36 +293,42 @@ setLoading(false);
             </section>
 
             {showEditForm ? (
-              <section className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
-                <h2 className="text-base font-bold text-blue-900">Edit User</h2>
-                <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={submitUpdate}>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Name</span>
-                    <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} required />
-                  </label>
-                  <label className="space-y-1 text-sm text-slate-700">
-                    <span className="font-medium">Role</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.role} onChange={(event) => setForm((value) => ({ ...value, role: event.target.value }))} required>
-                      <option value="">Select role</option>
-                      {roles.map((role) => (
-                        <option key={role.id} value={role.id}>{role.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="space-y-1 text-sm text-slate-700 md:col-span-2">
-                    <span className="font-medium">Status</span>
-                    <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.status} onChange={(event) => setForm((value) => ({ ...value, status: event.target.value }))}>
-                      <option value="ACTIVE">Active</option>
-                      <option value="INVITED">Invited</option>
-                      <option value="INACTIVE">Inactive</option>
-                    </select>
-                  </label>
-                  <button className="md:col-span-2 w-full rounded-lg bg-blue-800 py-2.5 font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" disabled={saving}>{saving ? "Saving..." : "Save User"}</button>
-                </form>
-              </section>
+              <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+                <button type="button" className="absolute inset-0 h-full w-full bg-black/40" onClick={() => setShowEditForm(false)} />
+                <section className="relative w-full max-w-2xl rounded-2xl border bg-white p-4 shadow-2xl">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h2 className="text-base font-bold text-blue-900">Edit User</h2>
+                    <button type="button" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700" onClick={() => setShowEditForm(false)}>Close</button>
+                  </div>
+                  <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={submitUpdate}>
+                    <label className="space-y-1 text-sm text-slate-700">
+                      <span className="font-medium">Name</span>
+                      <input className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.name} onChange={(event) => setForm((value) => ({ ...value, name: event.target.value }))} required />
+                    </label>
+                    <label className="space-y-1 text-sm text-slate-700">
+                      <span className="font-medium">Role</span>
+                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.role} onChange={(event) => setForm((value) => ({ ...value, role: event.target.value }))} required>
+                        <option value="">Select role</option>
+                        {roles.map((role) => (
+                          <option key={role.id} value={role.id}>{role.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-1 text-sm text-slate-700 md:col-span-2">
+                      <span className="font-medium">Status</span>
+                      <select className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={form.status} onChange={(event) => setForm((value) => ({ ...value, status: event.target.value }))}>
+                        <option value="ACTIVE">Active</option>
+                        <option value="INVITED">Invited</option>
+                        <option value="INACTIVE">Inactive</option>
+                      </select>
+                    </label>
+                    <button className="md:col-span-2 w-full rounded-lg bg-blue-800 py-2.5 font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" disabled={saving}>{saving ? "Saving..." : "Save User"}</button>
+                  </form>
+                </section>
+              </div>
             ) : null}
 
-            <section className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+            <section className="rounded-2xl border bg-white p-4 shadow-sm">
               <h2 className="text-base font-bold text-blue-900">User Details</h2>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {allFields.map(([key, value]) => (
@@ -307,6 +339,30 @@ setLoading(false);
                 ))}
               </div>
             </section>
+
+            {showDetailsModal ? (
+              <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+                <button type="button" className="absolute inset-0 h-full w-full bg-black/40" onClick={() => setShowDetailsModal(false)} />
+                <section className="relative w-full max-w-4xl rounded-2xl border bg-white p-4 shadow-2xl">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h2 className="text-base font-bold text-blue-900">{detailsTitle}</h2>
+                    <button type="button" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700" onClick={() => setShowDetailsModal(false)}>Close</button>
+                  </div>
+                  {detailsLoading ? <p className="text-sm text-slate-500">Loading details...</p> : null}
+                  {!detailsLoading && detailsError ? <p className="text-sm text-rose-600">{detailsError}</p> : null}
+                  {!detailsLoading && !detailsError ? (
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {detailsRows.map(([key, value]) => (
+                        <article key={key} className="rounded border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-xs font-bold uppercase tracking-widest text-blue-900/50">{humanizeLabel(key)}</p>
+                          <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-800">{formatValue(value)}</pre>
+                        </article>
+                      ))}
+                    </div>
+                  ) : null}
+                </section>
+              </div>
+            ) : null}
           </>
         ) : null}
       </section>

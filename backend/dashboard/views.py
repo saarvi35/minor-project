@@ -124,7 +124,11 @@ class UserListAPI(APIView):
         if not permissions.get("can_manage_users"):
             return Response({"error": "Permission denied"}, status=403)
 
-        users = CompanyUser.objects.filter(company=company_user.company)
+        users = CompanyUser.objects.select_related(
+            "role",
+            "user",
+            "profile__department",
+        ).filter(company=company_user.company).order_by("account_no", "id")
         serializer = UserSerializer(users, many=True)
         return Response(serializer.data)
 

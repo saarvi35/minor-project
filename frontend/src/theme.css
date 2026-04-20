@@ -25,6 +25,24 @@
   --ui-mono: "JetBrains Mono", "Consolas", monospace;
 }
 
+html[data-theme="dark"] {
+  --ui-bg: #070c18;
+  --ui-bg-soft: #0d1527;
+  --ui-bg-elevated: #0f1729;
+  --ui-surface: rgba(15, 23, 41, 0.9);
+  --ui-surface-strong: #0f1729;
+  --ui-border: #24344f;
+  --ui-border-strong: #334a6e;
+  --ui-text: #e5edf8;
+  --ui-text-soft: #a4b6d3;
+  --ui-text-muted: #7f94b6;
+  --ui-primary: #4b8bff;
+  --ui-primary-soft: #12284f;
+  --ui-primary-strong: #6aa4ff;
+  --ui-shadow: 0 24px 60px rgba(2, 6, 23, 0.5);
+  --ui-shadow-soft: 0 16px 36px rgba(2, 6, 23, 0.45);
+}
+
 body {
   background:
     radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 28%),
@@ -34,8 +52,32 @@ body {
   font-family: var(--ui-font);
 }
 
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at top left, rgba(75, 139, 255, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(57, 211, 155, 0.14), transparent 24%),
+    linear-gradient(180deg, #070c18 0%, #0d1527 100%);
+}
+
 #root {
   min-height: 100vh;
+}
+
+.global-theme-toggle {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 9999;
+  border-radius: 999px;
+  border: 1px solid var(--ui-border-strong);
+  background: var(--ui-surface-strong);
+  color: var(--ui-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.45rem 0.85rem;
+  box-shadow: var(--ui-shadow-soft);
 }
 
 .ui-shell {

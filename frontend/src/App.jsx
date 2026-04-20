@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 
@@ -25,9 +25,42 @@ function PageLoader() {
   return <main className="min-h-screen bg-slate-100 p-6 text-sm text-slate-600">Loading...</main>;
 }
 
+function GlobalThemeToggle() {
+  const [theme, setTheme] = useState("light");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = String(window.localStorage.getItem("app.theme") || "").toLowerCase();
+    if (saved === "light" || saved === "dark") {
+      setTheme(saved);
+      return;
+    }
+    setTheme("light");
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined" || typeof window === "undefined") return;
+    document.documentElement.setAttribute("data-theme", theme);
+    window.localStorage.setItem("app.theme", theme);
+  }, [theme]);
+
+  return (
+    <button
+      type="button"
+      className="global-theme-toggle"
+      onClick={() => setTheme((prev) => (prev === "light" ? "dark" : "light"))}
+      aria-label="Toggle theme"
+      title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+    >
+      {theme === "light" ? "Dark" : "Light"}
+    </button>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
+      <GlobalThemeToggle />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public homepage */}

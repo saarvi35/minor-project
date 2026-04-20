@@ -41,10 +41,35 @@ class UserSerializer(serializers.ModelSerializer):
     level = serializers.IntegerField(source="role.level")
     name = serializers.SerializerMethodField()
     email = serializers.SerializerMethodField()
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    account_no = serializers.IntegerField(read_only=True)
+    first_name = serializers.SerializerMethodField()
+    last_name = serializers.SerializerMethodField()
+    department = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
+    date_joined = serializers.SerializerMethodField()
+    address = serializers.SerializerMethodField()
 
     class Meta:
         model = CompanyUser
-        fields = ["id", "name", "email", "role", "level", "status"]
+        fields = [
+            "id",
+            "user_id",
+            "account_no",
+            "name",
+            "first_name",
+            "last_name",
+            "email",
+            "role",
+            "level",
+            "status",
+            "department",
+            "designation",
+            "phone",
+            "date_joined",
+            "address",
+        ]
 
     def get_name(self, obj):
         if obj.name:
@@ -59,6 +84,36 @@ class UserSerializer(serializers.ModelSerializer):
         if obj.user:
             return obj.user.email
         return None
+
+    def get_first_name(self, obj):
+        user = getattr(obj, "user", None)
+        return getattr(user, "first_name", None)
+
+    def get_last_name(self, obj):
+        user = getattr(obj, "user", None)
+        return getattr(user, "last_name", None)
+
+    def get_department(self, obj):
+        profile = getattr(obj, "profile", None)
+        department = getattr(profile, "department", None)
+        return getattr(department, "name", None)
+
+    def get_designation(self, obj):
+        profile = getattr(obj, "profile", None)
+        return getattr(profile, "designation", None)
+
+    def get_phone(self, obj):
+        profile = getattr(obj, "profile", None)
+        return getattr(profile, "phone", None)
+
+    def get_date_joined(self, obj):
+        profile = getattr(obj, "profile", None)
+        value = getattr(profile, "date_joined", None)
+        return value.isoformat() if value else None
+
+    def get_address(self, obj):
+        profile = getattr(obj, "profile", None)
+        return getattr(profile, "address", None)
 
 
 class ProjectSerializer(serializers.ModelSerializer):
