@@ -1,363 +1,1273 @@
-import { useState, useEffect } from "react";
-import logo from "./logo.png";
+import { useEffect, useState } from "react";
+import { postData } from "../lib/api";
 
-const STATS = [{ label: "Active teams", value: "120+" }, { label: "Tasks tracked daily", value: "40k" }, { label: "Avg approval time", value: "2.4h" }];
-const LOGOS = ["Northwind", "Atlas", "Novaline", "Pioneer", "Brightline", "Veridian"];
-const PILLARS = [
-    { icon: "⬡", title: "Clarity across teams", body: "Live views for managers, employees, clients, and HR with zero noise." },
-    { icon: "⬢", title: "Decisions without delay", body: "Approvals, reviews, and handoffs move in one connected flow." },
-    { icon: "◉", title: "Confidence in delivery", body: "Every task, file, and deadline stays tied to accountable owners." },
+const STATS = [
+  { value: "2,400", suffix: "+", label: "Enterprise Clients Worldwide" },
+  { value: "99.9", suffix: "%", label: "Guaranteed Uptime SLA" },
+  { value: "60", suffix: "+", label: "Countries Served" },
+  { value: "850", suffix: "+", label: "Employees Globally" },
 ];
-const FEATURES = [
-    { num: "01", title: "Unified command center", body: "Project progress, team performance, approvals, and finance signals in one view." },
-    { num: "02", title: "Built for managers", body: "Structured workflows for task assignment, leave approvals, and team accountability." },
-    { num: "03", title: "Client-ready visibility", body: "Give clients real-time updates without exposing internal operations." },
-    { num: "04", title: "Smart handoffs", body: "Employees always know what to do next, with context, files, and due dates." },
+
+const CLIENTS = [
+  "NorthBank",
+  "Veltrix",
+  "CoreMed",
+  "Stratum",
+  "Fenix Co.",
+  "Arrowhead",
+  "Meridian",
+  "Helios Inc",
+  "TerraOps",
+  "Prism AI",
 ];
-const WORKFLOW = [
-    { title: "Create projects", body: "Set scope, deadlines, and ownership with clean setup screens." },
-    { title: "Assign tasks", body: "Route work to the right people with clear priorities and files." },
-    { title: "Track progress", body: "Live dashboards show what is done, what is late, and what needs attention." },
+
+const ACCESS_CARDS = [
+  {
+    title: "Organization Account",
+    body: "For company admins managing teams, billing, and organization-wide settings.",
+    href: "/register",
+    icon: (
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    ),
+  },
+  {
+    title: "Employee Account",
+    body: "For team members and individual contributors accessing their daily workspace.",
+    href: "/login",
+    icon: (
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    ),
+  },
 ];
-const TOOLKIT = [
-    { title: "Progress snapshots", body: "Instantly see what is done, delayed, or ready for review." },
-    { title: "Attendance control", body: "Daily check-ins, check-outs, and leave approvals stay in sync." },
-    { title: "Role-based access", body: "Owners, managers, HR, and clients see only what they need." },
+
+const CONTACT_POINTS = [
+  "Response within 1 business day",
+  "Dedicated enterprise support team",
+  "Available across all time zones",
+  "No sales pressure, just honest answers",
 ];
 
 const css = `
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
-*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-:root {
-  --bg:#f0f4ff; --white:#fff; --ink:#0d1b3e; --ink2:#1e3a6e;
-  --blue:#2563eb; --blue2:#1d4ed8; --blue3:#3b82f6; --blue4:#60a5fa;
-  --muted:#6b7a99; --border:rgba(37,99,235,.12);
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; }
+
+.home-page {
+  --wz-ink: var(--ui-text);
+  --wz-ink-2: var(--ui-bg-elevated);
+  --wz-ink-3: var(--ui-bg-soft);
+  --wz-mist: var(--ui-bg-soft);
+  --wz-mist-2: var(--ui-border);
+  --wz-gold: var(--ui-primary);
+  --wz-gold-light: var(--ui-primary-strong);
+  --wz-white: var(--ui-text);
+  --wz-text-dim: var(--ui-text-muted);
+  --wz-text-body: var(--ui-text-soft);
+  --wz-shell: var(--ui-bg);
+  --wz-shell-2: var(--ui-bg-soft);
+  --wz-surface: var(--ui-surface);
+  --wz-surface-hover: var(--ui-surface-strong);
+  --wz-line: var(--ui-border);
+  --wz-soft-text: var(--ui-text-soft);
+  --wz-muted-on-shell: var(--ui-text-muted);
+  --wz-primary-rgb: 37, 99, 235;
+  --wz-shadow: var(--ui-shadow);
 }
-html[data-theme='dark'] {
-  --bg:#070c18; --white:#0f1729; --ink:#e5edf8; --ink2:#b9c9e3;
-  --muted:#98afd3; --border:rgba(148,163,184,.24);
+
+html[data-theme="light"] .home-page {
+  --wz-shell: var(--ui-bg);
+  --wz-shell-2: var(--ui-bg-soft);
+  --wz-surface: rgba(255, 255, 255, 0.88);
+  --wz-surface-hover: #ffffff;
+  --wz-line: var(--ui-border);
+  --wz-soft-text: var(--ui-text-soft);
+  --wz-muted-on-shell: var(--ui-text-muted);
+  --wz-gold: var(--ui-primary);
+  --wz-gold-light: var(--ui-primary-strong);
 }
-body { font-family:'Plus Jakarta Sans',sans-serif; background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased; }
-.z1  { position:relative; z-index:1; }
 
-/* NAV */
-.nav { position:fixed; top:0; left:0; right:0; z-index:100; height:70px; padding:0 3rem; display:flex; align-items:center; justify-content:space-between; background:linear-gradient(135deg,#0a1a3e 0%,#0d2760 55%,#1a3a8f 100%); border-bottom:3px solid #1e4db7; transition:box-shadow .3s; }
-.nav-brand { display:flex; align-items:center; gap:14px; text-decoration:none; }
-.nav-logo  { width:46px; height:46px; border-radius:50%; overflow:hidden; border:2px solid rgba(255,255,255,.3); box-shadow:0 0 0 3px rgba(30,77,183,0.35); flex-shrink:0; }
-.nav-logo img { width:100%; height:100%; object-fit:cover; display:block; }
-.nav-name p:first-child { font-size:10px; letter-spacing:.25em; text-transform:uppercase; color:rgba(255,255,255,.55); margin-bottom:2px; }
-.nav-name p:last-child  { font-size:20px; font-weight:800; color:#fff; letter-spacing:.01em; font-family:'Georgia',serif; line-height:1; }
-.nav-actions { display:flex; gap:8px; }
-.btn-ghost  { padding:8px 20px; font-size:14px; font-weight:600; color:#fff; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); border-radius:7px; cursor:pointer; text-decoration:none; transition:all .2s; }
-.btn-ghost:hover  { background:rgba(255,255,255,.22); }
-.btn-white  { padding:8px 20px; font-size:14px; font-weight:700; color:var(--blue2); background:#fff; border:none; border-radius:7px; cursor:pointer; text-decoration:none; box-shadow:0 2px 10px rgba(0,0,0,.15); transition:all .2s; font-family:'Georgia',serif; }
-.btn-white:hover  { box-shadow:0 4px 18px rgba(0,0,0,.2); transform:translateY(-1px); }
+html[data-theme="dark"] .home-page {
+  --wz-white: #ffffff;
+  --wz-primary-rgb: 75, 139, 255;
+}
 
-/* HERO */
-.hero { min-height:100vh; padding:106px 3rem 60px; display:grid; grid-template-columns:1fr 420px; gap:60px; align-items:center; position:relative; overflow:hidden; background:linear-gradient(160deg,#e8eeff,#f0f4ff 40%,#dde8ff); }
-.hero-glow { position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse 55% 65% at 68% 38%,rgba(37,99,235,.18),transparent 60%), radial-gradient(ellipse 45% 55% at 5% 85%,rgba(96,165,250,.14),transparent 55%); }
-.hero-grid { position:absolute; inset:0; pointer-events:none; background-image:linear-gradient(rgba(37,99,235,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,.07) 1px,transparent 1px); background-size:60px 60px; mask-image:radial-gradient(ellipse 90% 90% at 50% 50%,black,transparent); }
-.hero-orb  { position:absolute; border-radius:50%; pointer-events:none; animation:orbFloat 8s ease-in-out infinite; }
-.hero-orb.big   { width:420px; height:420px; top:-80px; right:80px; background:radial-gradient(circle,rgba(37,99,235,.12),transparent 70%); }
-.hero-orb.small { width:280px; height:280px; bottom:60px; left:-60px; background:radial-gradient(circle,rgba(96,165,250,.1),transparent 70%); animation-duration:10s; animation-direction:reverse; }
-@keyframes orbFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-20px); } }
+html { scroll-behavior: smooth; }
+body { overflow-x: hidden; }
 
-.hero-bubble { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--blue); background:rgba(37,99,235,.08); border:1px solid rgba(37,99,235,.2); border-radius:999px; padding:6px 16px; margin-bottom:20px; backdrop-filter:blur(4px); }
-.hero h1   { font-size:clamp(34px,4.2vw,58px); font-weight:700; line-height:1.12; letter-spacing:-.03em; margin-bottom:18px; }
-.hero h1 span { background:linear-gradient(135deg,var(--blue),var(--blue3)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-.hero-sub  { font-size:15px; line-height:1.7; color:var(--muted); max-width:440px; margin-bottom:28px; }
-.hero-cta  { display:flex; gap:10px; flex-wrap:wrap; }
-.btn-primary { padding:11px 26px; font-size:13px; font-weight:600; color:#fff; background:linear-gradient(135deg,var(--blue),var(--blue2)); border:none; border-radius:8px; cursor:pointer; text-decoration:none; box-shadow:0 4px 18px rgba(37,99,235,.35); transition:all .25s; }
-.btn-primary:hover { transform:translateY(-2px); box-shadow:0 8px 26px rgba(37,99,235,.45); }
-.btn-outline { padding:11px 26px; font-size:13px; font-weight:500; color:var(--ink2); background:var(--white); border:1px solid var(--border); border-radius:8px; cursor:pointer; text-decoration:none; transition:all .25s; }
-.btn-outline:hover { border-color:var(--blue); color:var(--blue); }
+.home-page {
+  min-height: 100vh;
+  background: var(--wz-white);
+  color: var(--wz-ink);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
 
-.hero-trust { display:flex; align-items:center; gap:16px; margin-top:20px; flex-wrap:wrap; }
-.trust-item { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
-.trust-item::before { content:'✓'; width:16px; height:16px; border-radius:50%; background:linear-gradient(135deg,var(--blue),var(--blue3)); color:#fff; font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.hero-social { display:flex; align-items:center; gap:10px; margin-top:16px; padding:11px 14px; background:rgba(255,255,255,.7); border:1px solid rgba(37,99,235,.1); border-radius:10px; backdrop-filter:blur(8px); width:fit-content; }
-.avatars { display:flex; }
-.avatar  { width:28px; height:28px; border-radius:50%; border:2px solid #fff; margin-left:-8px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:#fff; }
-.avatar:first-child { margin-left:0; }
-.social-text { font-size:12px; color:var(--muted); }
-.social-text strong { color:var(--ink); }
+.home-page ~ .global-theme-toggle,
+.global-theme-toggle {
+  border-color: var(--wz-line, rgba(37, 99, 235, 0.22));
+  background: var(--wz-surface, rgba(13, 17, 23, 0.86));
+  color: var(--wz-gold, #2563eb);
+  font-family: 'DM Sans', sans-serif;
+  box-shadow: var(--ui-shadow-soft);
+  backdrop-filter: blur(12px);
+}
 
-/* DASHBOARD CARD */
-.dash-card   { background:linear-gradient(160deg,#0d1b3e,#1a2f5a); border-radius:12px; overflow:hidden; box-shadow:0 28px 56px rgba(13,27,62,.35),0 0 0 1px rgba(37,99,235,.2); animation:cardFloat 5s ease-in-out infinite; }
-@keyframes cardFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
-.card-header { padding:16px 18px 12px; border-bottom:1px solid rgba(255,255,255,.07); display:flex; align-items:center; justify-content:space-between; }
-.card-label  { font-size:9px; letter-spacing:.3em; text-transform:uppercase; color:rgba(255,255,255,.3); margin-bottom:3px; }
-.card-title  { font-size:14px; font-weight:600; color:#fff; }
-.live-dot    { width:7px; height:7px; border-radius:50%; background:#4ade80; box-shadow:0 0 8px rgba(74,222,128,.7); animation:livePulse 2s infinite; }
-@keyframes livePulse { 0%,100% { opacity:1; } 50% { opacity:.5; } }
-.card-body    { padding:14px 18px 18px; }
-.card-metrics { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
-.card-metric  { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); border-radius:7px; padding:11px 13px; }
-.metric-label { font-size:9px; color:rgba(255,255,255,.35); text-transform:uppercase; letter-spacing:.15em; margin-bottom:4px; }
-.metric-value { font-size:24px; font-weight:700; color:#fff; letter-spacing:-.02em; }
-.card-divider { height:1px; background:rgba(255,255,255,.07); margin-bottom:11px; }
-.focus-label  { font-size:9px; letter-spacing:.2em; text-transform:uppercase; color:rgba(255,255,255,.3); margin-bottom:7px; }
-.focus-row    { display:flex; align-items:center; justify-content:space-between; padding:8px 10px; margin-bottom:6px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:6px; }
-.focus-row span { font-size:12px; color:rgba(255,255,255,.72); }
-.badge      { font-size:9px; padding:3px 8px; border-radius:4px; font-weight:500; }
-.badge.prog { background:rgba(37,99,235,.25); color:#93c5fd; }
-.badge.rev  { background:rgba(96,165,250,.15); color:#7dd3fc; }
+html[data-theme="light"] .wz-field input,
+html[data-theme="light"] .wz-field select,
+html[data-theme="light"] .wz-field textarea {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: var(--ui-border);
+  color: var(--wz-ink);
+}
 
-/* STATS */
-.stats-band { display:grid; grid-template-columns:repeat(3,1fr); background:linear-gradient(135deg,var(--blue2),var(--blue) 50%,var(--blue3)); }
-.stat-item  { padding:28px 36px; text-align:center; border-right:1px solid rgba(255,255,255,.1); }
-.stat-item:last-child { border-right:none; }
-.stat-value { font-size:42px; font-weight:700; color:#fff; letter-spacing:-.03em; line-height:1; }
-.stat-label { font-size:11px; letter-spacing:.15em; text-transform:uppercase; color:rgba(255,255,255,.6); margin-top:5px; }
+html[data-theme="light"] .wz-field input::placeholder,
+html[data-theme="light"] .wz-field textarea::placeholder {
+  color: var(--ui-text-muted);
+}
 
-/* LOGOS */
-.logos-section { padding:28px 3rem; background:var(--white); border-bottom:1px solid var(--border); display:flex; flex-direction:column; align-items:center; gap:14px; }
-.logos-row { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
-.logo-tag  { padding:5px 18px; border:1px solid var(--border); font-size:12px; letter-spacing:.1em; color:var(--muted); border-radius:20px; transition:all .2s; cursor:default; }
-.logo-tag:hover { border-color:var(--blue); color:var(--ink); background:rgba(37,99,235,.05); }
+html[data-theme="light"] .wz-field label,
+html[data-theme="light"] .wz-privacy,
+html[data-theme="light"] .wz-success-body,
+html[data-theme="light"] .wz-company {
+  color: var(--ui-text-muted);
+}
 
-/* SHARED SECTION TYPOGRAPHY */
-.sec-tag { font-size:10px; letter-spacing:.3em; text-transform:uppercase; font-weight:600; margin-bottom:10px; }
-.sec-h2  { font-size:clamp(24px,2.8vw,38px); font-weight:700; line-height:1.2; letter-spacing:-.02em; margin-bottom:8px; }
-.sec-sub { font-size:14px; line-height:1.65; }
-.sec-center { text-align:center; max-width:560px; margin:0 auto 36px; }
+.wz-container { max-width: 1200px; margin: 0 auto; }
 
-/* PILLARS */
-.pillars-section { padding:60px 3rem; position:relative; overflow:hidden; background:linear-gradient(160deg,#0d1b3e,#0f2251 60%,#1a3a6e); }
-.pillars-section::before { content:''; position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse 80% 60% at 50% 50%,rgba(37,99,235,.15),transparent 70%); }
-.pillars-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.08); border-radius:12px; overflow:hidden; position:relative; z-index:1; }
-.pillar-card  { padding:28px 24px; background:#0f2251; transition:background .3s; }
-.pillar-card:hover { background:#1a3570; }
-.pillar-icon  { font-size:18px; color:var(--blue4); margin-bottom:12px; display:block; }
-.pillar-card h3 { font-size:16px; font-weight:600; color:#fff; margin-bottom:6px; }
-.pillar-card p  { font-size:13px; color:rgba(255,255,255,.5); line-height:1.6; }
+.wz-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 68px;
+  padding: 0 64px;
+  background: color-mix(in srgb, var(--wz-shell) 94%, transparent);
+  border-bottom: 1px solid var(--wz-line);
+  backdrop-filter: blur(12px);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
 
-/* FEATURES */
-.features-layout  { display:grid; grid-template-columns:260px 1fr; gap:52px; align-items:start; }
-.features-sidebar { position:sticky; top:80px; }
-.features-grid    { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-.feature-card     { padding:24px 20px; background:var(--white); transition:background .2s; }
-.feature-card:hover { background:#e8eeff; }
-.feature-num { font-size:32px; font-weight:700; opacity:.5; line-height:1; margin-bottom:10px; background:linear-gradient(135deg,var(--blue),var(--blue3)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-.feature-card h3 { font-size:14px; font-weight:600; color:var(--ink); margin-bottom:5px; }
-.feature-card p  { font-size:13px; color:var(--muted); line-height:1.6; }
+.wz-nav.scrolled {
+  border-bottom-color: var(--ui-border-strong);
+  box-shadow: var(--ui-shadow-soft);
+}
 
-/* WORKFLOW */
-.workflow-steps { display:grid; grid-template-columns:repeat(3,1fr); position:relative; }
-.workflow-steps::after { content:''; position:absolute; top:22px; left:12%; right:12%; height:1px; background:linear-gradient(90deg,transparent,var(--blue),transparent); opacity:.2; }
-.workflow-step  { padding:28px 20px 20px; text-align:center; }
-.step-number    { width:44px; height:44px; margin:0 auto 16px; border:1.5px solid var(--blue); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:var(--blue); background:linear-gradient(135deg,rgba(37,99,235,.08),rgba(59,130,246,.04)); position:relative; z-index:1; }
-.workflow-step h3 { font-size:14px; font-weight:600; color:var(--ink); margin-bottom:5px; }
-.workflow-step p  { font-size:13px; color:var(--muted); line-height:1.6; }
+.wz-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
 
-/* TOOLKIT */
-.toolkit-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
-.toolkit-card { padding:24px 20px; border:1px solid var(--border); background:var(--white); border-radius:10px; position:relative; overflow:hidden; transition:box-shadow .3s,transform .2s; }
-.toolkit-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--blue),var(--blue3),transparent); opacity:0; transition:opacity .3s; }
-.toolkit-card:hover { box-shadow:0 8px 28px rgba(37,99,235,.1); transform:translateY(-2px); }
-.toolkit-card:hover::before { opacity:1; }
-.toolkit-card h3 { font-size:14px; font-weight:600; color:var(--ink); margin-bottom:6px; }
-.toolkit-card p  { font-size:13px; color:var(--muted); line-height:1.6; }
+.wz-brand-mark {
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid var(--wz-gold);
+  display: grid;
+  place-items: center;
+  transform: rotate(45deg);
+  flex-shrink: 0;
+}
 
-/* SECURITY */
-.security-section    { padding:44px 3rem; background:linear-gradient(135deg,#1d4ed8,#1e3a8a); display:flex; align-items:center; justify-content:space-between; gap:28px; flex-wrap:wrap; }
-.security-section h2 { font-size:20px; font-weight:700; color:#fff; margin-bottom:5px; }
-.security-section p  { font-size:13px; color:rgba(255,255,255,.55); }
-.security-badges { display:flex; gap:8px; flex-wrap:wrap; }
-.security-badge  { padding:6px 14px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.85); border:1px solid rgba(255,255,255,.2); border-radius:20px; display:flex; align-items:center; gap:5px; background:rgba(255,255,255,.08); }
-.security-badge::before { content:'✓'; color:#4ade80; font-weight:700; font-size:11px; }
+.wz-brand-mark-inner {
+  width: 12px;
+  height: 12px;
+  background: var(--wz-gold);
+}
 
-/* CTA */
-.cta-section { padding:72px 3rem; text-align:center; position:relative; overflow:hidden; background:linear-gradient(160deg,#07101f,#0f2251 50%,#1a3570); }
-.cta-section::before { content:''; position:absolute; inset:0; pointer-events:none; background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(37,99,235,.2),transparent 65%); }
-.cta-section h2 { font-size:clamp(26px,3.2vw,44px); font-weight:700; color:#fff; letter-spacing:-.02em; line-height:1.15; max-width:580px; margin:0 auto 10px; }
-.cta-section h2 span { background:linear-gradient(135deg,var(--blue3),var(--blue4)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-.cta-section p  { font-size:14px; color:rgba(255,255,255,.4); margin-bottom:28px; }
-.cta-buttons    { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; position:relative; z-index:1; }
-.btn-cta-solid  { padding:12px 30px; font-size:13px; font-weight:600; color:var(--ink); background:linear-gradient(135deg,#60a5fa,#3b82f6); border:none; border-radius:8px; cursor:pointer; text-decoration:none; box-shadow:0 4px 18px rgba(96,165,250,.35); transition:all .25s; }
-.btn-cta-solid:hover  { transform:translateY(-2px); box-shadow:0 8px 26px rgba(96,165,250,.5); }
-.btn-cta-ghost  { padding:12px 30px; font-size:13px; font-weight:500; color:rgba(255,255,255,.65); background:transparent; border:1px solid rgba(255,255,255,.18); border-radius:8px; cursor:pointer; text-decoration:none; transition:all .25s; }
-.btn-cta-ghost:hover  { border-color:rgba(255,255,255,.42); color:#fff; }
+.wz-brand-name {
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+  color: var(--wz-white);
+  letter-spacing: 0.04em;
+}
 
-/* FOOTER */
-.footer       { padding:26px 3rem; background:#07101f; border-top:1px solid rgba(255,255,255,.06); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
-.footer p     { font-size:12px; color:rgba(255,255,255,.28); }
-.footer-brand { display:flex; align-items:center; gap:8px; }
-.footer-logo  { width:24px; height:24px; border-radius:6px; background:linear-gradient(135deg,var(--blue2),var(--blue)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:11px; }
+.wz-brand-name span { color: var(--wz-gold); }
 
-/* RESPONSIVE */
-@media (max-width:1024px) {
-  .hero, .features-layout { grid-template-columns:1fr; }
-  .pillars-grid, .workflow-steps, .toolkit-grid, .stats-band { grid-template-columns:1fr; }
-  .stat-item { border-right:none; border-bottom:1px solid rgba(255,255,255,.1); }
-  .nav, .hero, .logos-section, .pillars-section, .security-section, .cta-section, .footer { padding-left:1.5rem; padding-right:1.5rem; }
-  .security-section { flex-direction:column; align-items:flex-start; }
-  .features-sidebar { position:static; }
+.wz-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.wz-nav-links a {
+  color: var(--wz-text-dim);
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.wz-nav-links a:hover,
+.wz-nav-links a.active { color: var(--wz-gold); }
+
+.wz-nav-cta {
+  padding: 9px 22px;
+  background: var(--wz-gold);
+  color: #ffffff !important;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.wz-nav-cta:hover {
+  background: var(--wz-gold-light);
+  transform: translateY(-1px);
+}
+
+.wz-hero {
+  min-height: 100vh;
+  background: var(--wz-shell);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 120px 64px 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+.wz-hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 80%, rgba(var(--wz-primary-rgb), 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 20% 20%, rgba(var(--wz-primary-rgb), 0.14) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 80% 80%, rgba(22, 163, 74, 0.08) 0%, transparent 70%);
+}
+
+.wz-hero-grid,
+.wz-cta-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(var(--wz-primary-rgb), 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--wz-primary-rgb), 0.06) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.wz-hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 820px;
+}
+
+.wz-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  color: var(--wz-gold);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.wz-eyebrow::before,
+.wz-eyebrow::after {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: var(--wz-gold);
+  opacity: 0.6;
+}
+
+.wz-title {
+  margin: 0 0 28px;
+  color: var(--wz-white);
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(42px, 6vw, 76px);
+  line-height: 1.1;
+}
+
+.wz-title em,
+.wz-section-title em,
+.wz-cta-title em { color: var(--wz-gold); font-style: italic; }
+
+.wz-hero-sub {
+  max-width: 590px;
+  margin: 0 auto 48px;
+  color: var(--wz-soft-text);
+  font-size: 17px;
+  font-weight: 300;
+  line-height: 1.7;
+}
+
+.wz-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.wz-btn-primary,
+.wz-btn-ghost {
+  border-radius: 8px;
+  font-size: 14px;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.wz-btn-primary {
+  padding: 14px 32px;
+  background: var(--wz-gold);
+  color: #ffffff;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.wz-btn-primary:hover {
+  background: var(--wz-gold-light);
+  box-shadow: 0 12px 28px rgba(var(--wz-primary-rgb), 0.25);
+  transform: translateY(-2px);
+}
+
+.wz-btn-ghost {
+  padding: 14px 32px;
+  border: 1.5px solid var(--wz-line);
+  color: var(--wz-text-body);
+  font-weight: 500;
+}
+
+.wz-btn-ghost:hover {
+  border-color: var(--wz-gold);
+  color: var(--wz-gold);
+}
+
+.wz-scroll {
+  position: absolute;
+  bottom: 36px;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+}
+
+.wz-scroll span {
+  color: var(--wz-text-dim);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.wz-scroll div {
+  width: 1px;
+  height: 40px;
+  background: linear-gradient(to bottom, rgba(var(--wz-primary-rgb), 0.55), transparent);
+  animation: wzScrollPulse 2s ease-in-out infinite;
+}
+
+@keyframes wzScrollPulse {
+  0%, 100% { opacity: 0.4; transform: scaleY(1); }
+  50% { opacity: 1; transform: scaleY(1.15); }
+}
+
+.wz-section {
+  padding: 100px 64px;
+}
+
+.wz-access {
+  background: var(--wz-shell);
+  border-top: 1px solid var(--wz-line);
+  padding: 72px 64px;
+}
+
+.wz-access-layout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 48px;
+  flex-wrap: wrap;
+}
+
+.wz-section-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  color: var(--wz-gold);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.wz-section-eyebrow::before {
+  content: "";
+  width: 24px;
+  height: 1px;
+  background: var(--wz-gold);
+  opacity: 0.6;
+}
+
+.wz-section-title,
+.wz-cta-title {
+  margin: 0 0 16px;
+  color: var(--wz-ink);
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(30px, 3.5vw, 44px);
+  line-height: 1.2;
+}
+
+.wz-section-body {
+  max-width: 580px;
+  color: var(--wz-text-body);
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.75;
+}
+
+.wz-access-copy { max-width: 430px; }
+.wz-access-copy .wz-section-title { color: var(--wz-white); font-size: clamp(24px, 2.5vw, 34px); }
+.wz-access-copy .wz-section-body { color: var(--wz-muted-on-shell); }
+.wz-access-copy a { color: var(--wz-gold); text-decoration: none; border-bottom: 1px solid rgba(var(--wz-primary-rgb), 0.3); }
+
+.wz-access-cards {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.wz-portal-card {
+  width: 260px;
+  min-height: 258px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 32px 28px;
+  background: var(--wz-surface);
+  border: 1.5px solid var(--wz-line);
+  border-radius: 16px;
+  color: inherit;
+  overflow: hidden;
+  position: relative;
+  text-decoration: none;
+  transition: all 0.25s ease;
+}
+
+.wz-portal-card::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--wz-gold);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.wz-portal-card:hover {
+  border-color: rgba(var(--wz-primary-rgb), 0.5);
+  background: var(--wz-surface-hover);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.3);
+  transform: translateY(-5px);
+}
+
+.wz-portal-card:hover::before { transform: scaleX(1); }
+
+.wz-portal-icon {
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+  background: rgba(var(--wz-primary-rgb), 0.1);
+  border: 1px solid rgba(var(--wz-primary-rgb), 0.2);
+  border-radius: 12px;
+  color: var(--wz-gold);
+}
+
+.wz-portal-label {
+  margin-bottom: 8px;
+  color: var(--wz-white);
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+}
+
+.wz-portal-desc {
+  flex: 1;
+  margin-bottom: 24px;
+  color: var(--wz-muted-on-shell);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+.wz-portal-arrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--wz-gold);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: gap 0.2s;
+}
+
+.wz-portal-card:hover .wz-portal-arrow { gap: 12px; }
+
+.wz-stats {
+  background: var(--wz-shell);
+  padding: 80px 64px;
+}
+
+.wz-center { text-align: center; }
+.wz-center .wz-section-eyebrow { justify-content: center; }
+.wz-center .wz-section-eyebrow::after {
+  content: "";
+  width: 24px;
+  height: 1px;
+  background: var(--wz-gold);
+  opacity: 0.6;
+}
+
+.wz-stats .wz-section-title,
+.wz-clients .wz-section-title,
+.wz-cta .wz-section-title { color: var(--wz-white); }
+
+.wz-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin-top: 56px;
+  background: var(--wz-line);
+  border: 1px solid var(--wz-line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.wz-stat-card {
+  padding: 48px 36px;
+  background: var(--wz-surface);
+  box-shadow: inset 0 0 0 1px rgba(var(--wz-primary-rgb), 0.02);
+  text-align: center;
+  transition: background 0.2s;
+}
+
+.wz-stat-card:hover { background: var(--wz-surface-hover); }
+
+.wz-stat-number {
+  margin-bottom: 8px;
+  color: var(--wz-gold);
+  font-family: 'DM Serif Display', serif;
+  font-size: 48px;
+  line-height: 1;
+}
+
+.wz-stat-suffix {
+  color: var(--wz-gold);
+  font-family: 'DM Serif Display', serif;
+  font-size: 24px;
+}
+
+.wz-stat-desc {
+  margin-top: 8px;
+  color: var(--wz-muted-on-shell);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.wz-clients {
+  background: var(--wz-shell);
+  padding: 80px 64px;
+}
+
+.wz-client-title { margin-bottom: 56px; }
+
+.wz-client-title .wz-section-eyebrow::before,
+.wz-client-title .wz-section-eyebrow::after { display: none; }
+
+.wz-logos-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  margin-bottom: 56px;
+  background: var(--wz-line);
+  border: 1px solid var(--wz-line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.wz-logo-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 28px;
+  background: var(--wz-surface);
+  transition: background 0.2s;
+}
+
+.wz-logo-cell:hover { background: var(--wz-surface-hover); }
+
+.wz-logo-text {
+  color: var(--wz-text-body);
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+  letter-spacing: 0.05em;
+  transition: color 0.2s;
+}
+
+.wz-logo-cell:hover .wz-logo-text { color: var(--wz-gold); }
+
+.wz-testimonial {
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.wz-quote {
+  margin-bottom: 24px;
+  color: var(--wz-ink);
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(18px, 2vw, 24px);
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.wz-author {
+  color: var(--wz-gold);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+}
+
+.wz-company {
+  margin-top: 4px;
+  color: var(--wz-text-dim);
+  font-size: 12px;
+}
+
+.wz-cta {
+  background: var(--wz-shell);
+  padding: 100px 64px;
+  position: relative;
+  overflow: hidden;
+}
+
+.wz-cta-bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(var(--wz-primary-rgb), 0.13) 0%, transparent 70%);
+}
+
+.wz-cta-layout {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.wz-cta-title {
+  color: var(--wz-white);
+  font-size: clamp(28px, 3vw, 44px);
+}
+
+.wz-cta-sub {
+  margin-bottom: 36px;
+  color: var(--wz-muted-on-shell);
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.75;
+}
+
+.wz-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wz-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--wz-muted-on-shell);
+  font-size: 14px;
+}
+
+.wz-check-icon {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(var(--wz-primary-rgb), 0.3);
+  border-radius: 50%;
+  background: rgba(var(--wz-primary-rgb), 0.15);
+  color: var(--wz-gold);
+  flex-shrink: 0;
+}
+
+.wz-contact-links {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 36px;
+}
+
+.wz-contact-links a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--wz-muted-on-shell);
+  font-size: 14px;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.wz-contact-links a:hover { color: var(--wz-gold); }
+
+.wz-form-card,
+.wz-success-card {
+  background: var(--wz-surface);
+  border: 1.5px solid var(--wz-line);
+  border-radius: 20px;
+  padding: 40px 36px;
+}
+
+.wz-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.wz-field { margin-bottom: 16px; }
+
+.wz-field label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--wz-text-dim);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wz-field input,
+.wz-field select,
+.wz-field textarea {
+  width: 100%;
+  padding: 11px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: var(--wz-white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.wz-field input::placeholder,
+.wz-field textarea::placeholder { color: rgba(255, 255, 255, 0.26); }
+
+.wz-field select option { background: var(--wz-ink-2); }
+.wz-field textarea { resize: vertical; min-height: 112px; }
+.wz-field input:focus,
+.wz-field select:focus,
+.wz-field textarea:focus { border-color: rgba(var(--wz-primary-rgb), 0.5); }
+
+.wz-error {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: rgba(224, 112, 112, 0.08);
+  border: 1px solid rgba(224, 112, 112, 0.2);
+  border-radius: 6px;
+  color: #e07070;
+  font-size: 12px;
+}
+
+.wz-submit {
+  width: 100%;
+  padding: 14px;
+  background: var(--wz-gold);
+  border: none;
+  border-radius: 10px;
+  color: #ffffff;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: all 0.2s;
+}
+
+.wz-submit:hover { background: var(--wz-gold-light); }
+.wz-submit:disabled { cursor: wait; opacity: 0.7; }
+
+.wz-privacy {
+  margin: 14px 0 0;
+  color: var(--wz-text-dim);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.wz-privacy a { color: var(--wz-gold); text-decoration: none; }
+
+.wz-success-card {
+  padding: 48px 36px;
+  background: rgba(46, 204, 143, 0.06);
+  border-color: rgba(46, 204, 143, 0.2);
+  text-align: center;
+}
+
+.wz-success-icon {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 20px;
+  background: rgba(46, 204, 143, 0.1);
+  border-radius: 50%;
+  color: #2ecc8f;
+}
+
+.wz-success-title {
+  margin-bottom: 10px;
+  color: var(--wz-white);
+  font-family: 'DM Serif Display', serif;
+  font-size: 22px;
+}
+
+.wz-success-body {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.wz-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 40px 64px;
+  background: var(--wz-shell-2);
+  border-top: 1px solid var(--wz-line);
+}
+
+.wz-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wz-footer .wz-brand-mark {
+  width: 22px;
+  height: 22px;
+  border-color: rgba(var(--wz-primary-rgb), 0.3);
+}
+
+.wz-footer .wz-brand-mark-inner {
+  width: 8px;
+  height: 8px;
+  background: rgba(var(--wz-primary-rgb), 0.35);
+}
+
+.wz-footer-brand-name {
+  color: var(--wz-text-body);
+  font-family: 'DM Serif Display', serif;
+  font-size: 16px;
+}
+
+.wz-footer-brand-name span { color: var(--wz-gold); }
+
+.wz-footer-copy {
+  color: var(--wz-text-dim);
+  font-size: 12px;
+}
+
+.wz-footer-links {
+  display: flex;
+  gap: 24px;
+}
+
+.wz-footer-links a {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 12px;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.wz-footer-links a:hover { color: var(--wz-gold); }
+
+.wz-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.65s ease, transform 0.65s ease;
+}
+
+.wz-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.wz-delay-1 { transition-delay: 0.1s; }
+.wz-delay-2 { transition-delay: 0.2s; }
+.wz-delay-3 { transition-delay: 0.3s; }
+
+@media (max-width: 1024px) {
+  .wz-nav { padding: 0 32px; }
+  .wz-nav-links { gap: 20px; }
+  .wz-section,
+  .wz-access,
+  .wz-stats,
+  .wz-clients,
+  .wz-cta { padding-left: 32px; padding-right: 32px; }
+  .wz-stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .wz-logos-grid { grid-template-columns: repeat(3, 1fr); }
+  .wz-cta-layout { grid-template-columns: 1fr; gap: 48px; }
+}
+
+@media (max-width: 760px) {
+  .wz-nav { padding: 0 20px; }
+  .wz-nav-links li:not(:last-child) { display: none; }
+  .wz-hero { padding: 116px 22px 82px; }
+  .wz-section,
+  .wz-access,
+  .wz-stats,
+  .wz-clients,
+  .wz-cta { padding-left: 22px; padding-right: 22px; }
+  .wz-access-cards,
+  .wz-portal-card { width: 100%; }
+  .wz-stats-grid { grid-template-columns: 1fr; }
+  .wz-logos-grid { grid-template-columns: repeat(2, 1fr); }
+  .wz-form-grid { grid-template-columns: 1fr; gap: 0; }
+  .wz-footer { flex-direction: column; text-align: center; }
+  .wz-footer-links { flex-wrap: wrap; justify-content: center; }
 }
 `;
 
-const SH = ({ tag, tagColor, h2, h2Color, sub, subColor }) => (
-    <>
-        <div className="sec-tag" style={{ color: tagColor }}>{tag}</div>
-        <h2 className="sec-h2" style={{ color: h2Color }}>{h2}</h2>
-        <p className="sec-sub" style={{ color: subColor }}>{sub}</p>
-    </>
-);
+const initialForm = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  subject: "",
+  message: "",
+};
 
 export default function HomePage() {
-    const [scrolled, setScrolled] = useState(false);
-    useEffect(() => {
-        const onScroll = () => setScrolled(window.scrollY > 10);
-        window.addEventListener("scroll", onScroll);
-        return () => window.removeEventListener("scroll", onScroll);
-    }, []);
+  const [scrolled, setScrolled] = useState(false);
+  const [form, setForm] = useState(initialForm);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-    return (
-        <>
-            <style>{css}</style>
-            <main>
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    onScroll();
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
-                {/* NAV */}
-                <header className="nav" style={{ boxShadow: scrolled ? "0 4px 24px rgba(13,27,62,.25)" : "none" }}>
-                    <a href="/" className="nav-brand">
-                        <div className="nav-logo">
-                            <img src={logo} alt="WorkZen" />
-                        </div>
-                        <div className="nav-name">
-                            <p>Enterprise Platform</p>
-                            <p>WorkZen</p>
-                        </div>
-                    </a>
-                    <div className="nav-actions">
-                        <a href="/login" className="btn-ghost">Login</a>
-                        <a href="/register" className="btn-white">Register →</a>
-                    </div>
-                </header>
-
-                {/* HERO */}
-                <section className="hero">
-                    <div className="hero-glow" /><div className="hero-grid" />
-                    <div className="hero-orb big" /><div className="hero-orb small" />
-                    <div className="z1">
-                        <div className="hero-bubble">✦ Modern ops for growing teams</div>
-                        <h1>Keep every project moving with <span>clarity & ownership.</span></h1>
-                        <p className="hero-sub">WorkZen connects managers, employees, clients, and HR into one structured workflow so you never lose momentum.</p>
-                        <div className="hero-cta">
-                            <a href="/register" className="btn-primary">Start your workspace</a>
-                            <a href="/login" className="btn-outline">I already have an account</a>
-                        </div>
-                        <div className="hero-trust">
-                            {["Free to start", "No credit card", "Setup in minutes"].map(t => <span key={t} className="trust-item">{t}</span>)}
-                        </div>
-                        <div className="hero-social">
-                            <div className="avatars">
-                                {[["#2563eb", "A"], ["#1d4ed8", "B"], ["#3b82f6", "C"], ["#1e3a6e", "D"]].map(([bg, l]) => (
-                                    <div key={l} className="avatar" style={{ background: bg }}>{l}</div>
-                                ))}
-                            </div>
-                            <div className="social-text"><strong>120+ teams</strong> already use WorkZen daily</div>
-                        </div>
-                    </div>
-                    <div className="z1">
-                        <div className="dash-card">
-                            <div className="card-header">
-                                <div><div className="card-label">Live Operations</div><div className="card-title">Executive Overview</div></div>
-                                <div className="live-dot" />
-                            </div>
-                            <div className="card-body">
-                                <div className="card-metrics">
-                                    <div className="card-metric"><div className="metric-label">On track</div><div className="metric-value">82%</div></div>
-                                    <div className="card-metric"><div className="metric-label">Approvals</div><div className="metric-value">14</div></div>
-                                </div>
-                                <div className="card-divider" />
-                                <div className="focus-label">Priority focus</div>
-                                <div className="focus-row"><span>Marketing website refresh</span><span className="badge prog">In progress</span></div>
-                                <div className="focus-row"><span>Finance month-end close</span><span className="badge rev">Review</span></div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                {/* STATS */}
-                <section className="stats-band">
-                    {STATS.map(s => <div key={s.label} className="stat-item"><div className="stat-value">{s.value}</div><div className="stat-label">{s.label}</div></div>)}
-                </section>
-
-                {/* LOGOS */}
-                <section className="logos-section">
-                    <p className="sec-tag" style={{ color: "var(--muted)" }}>Trusted teams</p>
-                    <div className="logos-row">{LOGOS.map(l => <span key={l} className="logo-tag">{l}</span>)}</div>
-                </section>
-
-                {/* PILLARS */}
-                <section className="pillars-section">
-                    <div className="sec-center z1">
-                        <SH tag="Why WorkZen" tagColor="var(--blue4)" h2="Built for speed and accountability" h2Color="#fff" sub="Everything stays connected from goals to execution." subColor="rgba(255,255,255,.45)" />
-                    </div>
-                    <div className="pillars-grid">
-                        {PILLARS.map(p => <div key={p.title} className="pillar-card"><span className="pillar-icon">{p.icon}</span><h3>{p.title}</h3><p>{p.body}</p></div>)}
-                    </div>
-                </section>
-
-                {/* FEATURES */}
-                <section style={{ padding: "60px 3rem", background: "var(--bg)" }}>
-                    <div className="features-layout">
-                        <div className="features-sidebar">
-                            <SH tag="Core capabilities" tagColor="var(--blue)" h2="Designed for execution, not just tracking" h2Color="var(--ink)" sub="Everything in your workspace is structured to keep work moving without friction." subColor="var(--muted)" />
-                            <a href="/register" className="btn-primary" style={{ marginTop: 22, display: "inline-block" }}>Start for free →</a>
-                        </div>
-                        <div className="features-grid">
-                            {FEATURES.map(f => <div key={f.title} className="feature-card"><div className="feature-num">{f.num}</div><h3>{f.title}</h3><p>{f.body}</p></div>)}
-                        </div>
-                    </div>
-                </section>
-
-                {/* WORKFLOW */}
-                <section style={{ padding: "60px 3rem", background: "var(--white)", borderTop: "1px solid var(--border)" }}>
-                    <div className="sec-center">
-                        <SH tag="How it works" tagColor="var(--blue)" h2="Clear steps from kickoff to completion" h2Color="var(--ink)" sub="Give every team a shared playbook with accountability built in." subColor="var(--muted)" />
-                    </div>
-                    <div className="workflow-steps">
-                        {WORKFLOW.map((w, i) => <div key={w.title} className="workflow-step"><div className="step-number">0{i + 1}</div><h3>{w.title}</h3><p>{w.body}</p></div>)}
-                    </div>
-                </section>
-
-                {/* TOOLKIT */}
-                <section style={{ padding: "60px 3rem", background: "var(--bg)" }}>
-                    <div style={{ maxWidth: 500, marginBottom: 28 }}>
-                        <SH tag="Toolkit" tagColor="var(--blue)" h2="Everything you expect, styled for real work" h2Color="var(--ink)" sub="Dashboards, approvals, and audit trails look sharp and stay aligned." subColor="var(--muted)" />
-                    </div>
-                    <div className="toolkit-grid">
-                        {TOOLKIT.map(t => <div key={t.title} className="toolkit-card"><h3>{t.title}</h3><p>{t.body}</p></div>)}
-                    </div>
-                </section>
-
-                {/* SECURITY */}
-                <section className="security-section">
-                    <div><h2>Secure, structured, and audit-ready</h2><p>Role-based access, traceable updates, and clear approvals for every team.</p></div>
-                    <div className="security-badges">
-                        {["Role-based visibility", "Approval traceability", "Consistent audit trails"].map(b => <span key={b} className="security-badge">{b}</span>)}
-                    </div>
-                </section>
-
-                {/* CTA */}
-                <section className="cta-section">
-                    <div className="z1" style={{ position: "relative" }}>
-                        <h2>Ready to run operations <span>with confidence?</span></h2>
-                        <p>Launch your workspace and keep every role aligned from day one.</p>
-                        <div className="cta-buttons">
-                            <a href="/register" className="btn-cta-solid">Create your company →</a>
-                            <a href="/login" className="btn-cta-ghost">Login</a>
-                        </div>
-                    </div>
-                </section>
-
-                {/* FOOTER */}
-                <footer className="footer">
-                    <div className="footer-brand"><div className="footer-logo">W</div><p>WorkZen — Smart Enterprise Platform.</p></div>
-                </footer>
-
-            </main>
-        </>
+  useEffect(() => {
+    const reveals = document.querySelectorAll(".wz-reveal");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) entry.target.classList.add("visible");
+        });
+      },
+      { threshold: 0.1, rootMargin: "0px 0px -40px 0px" },
     );
+
+    reveals.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+
+  const updateForm = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const submitContact = async (event) => {
+    event.preventDefault();
+    const values = Object.values(form).map((value) => value.trim());
+
+    if (values.some((value) => !value)) {
+      setError("Please fill in all required fields.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      setError("Please enter a valid work email address.");
+      return;
+    }
+
+    setError("");
+    setSubmitting(true);
+
+    try {
+      await postData("/contact-messages/", {
+        first_name: form.firstName.trim(),
+        last_name: form.lastName.trim(),
+        email: form.email.trim(),
+        subject: form.subject,
+        message: form.message.trim(),
+      });
+      setSubmitted(true);
+      setForm(initialForm);
+    } catch (apiError) {
+      const data = apiError?.response?.data;
+      const firstFieldError = data && typeof data === "object"
+        ? Object.values(data).flat().filter(Boolean)[0]
+        : null;
+      setError(firstFieldError || "Message save nahi ho paya. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      <style>{css}</style>
+      <main className="home-page">
+        <header className={`wz-nav ${scrolled ? "scrolled" : ""}`}>
+          <a href="/" className="wz-brand">
+            <div className="wz-brand-mark"><div className="wz-brand-mark-inner" /></div>
+            <span className="wz-brand-name">Work<span>Zen</span></span>
+          </a>
+          <ul className="wz-nav-links">
+            <li><a href="#access-portal">Platform</a></li>
+            <li><a href="#numbers">Solutions</a></li>
+            <li><a href="#hero" className="active">About</a></li>
+            <li><a href="#customers">Customers</a></li>
+            <li><a href="/login">Sign In</a></li>
+            <li><a href="#contact" className="wz-nav-cta">Contact Us</a></li>
+          </ul>
+        </header>
+
+        <section className="wz-hero" id="hero">
+          <div className="wz-hero-bg" />
+          <div className="wz-hero-grid" />
+          <div className="wz-hero-content">
+            <div className="wz-eyebrow wz-reveal visible">About WorkZen</div>
+            <h1 className="wz-title wz-reveal visible wz-delay-1">
+              Built for the enterprises<br />that <em>can't afford</em> to fail
+            </h1>
+            <p className="wz-hero-sub wz-reveal visible wz-delay-2">
+              We build the operational backbone for demanding organizations where reliability,
+              security, and performance are not features, they are requirements.
+            </p>
+            <div className="wz-actions wz-reveal visible wz-delay-3">
+              <a href="/login" className="wz-btn-primary">Sign In</a>
+              <a href="#contact" className="wz-btn-ghost">Contact Us</a>
+            </div>
+          </div>
+        </section>
+
+        <section className="wz-access" id="access-portal">
+          <div className="wz-container wz-access-layout">
+            <div className="wz-access-copy wz-reveal">
+              <div className="wz-section-eyebrow">Access Portal</div>
+              <h2 className="wz-section-title">
+                Sign in to your<br /><em>WorkZen</em> workspace
+              </h2>
+              <p className="wz-section-body">
+                Choose your account type below. Not sure which to use? <a href="#contact">Contact your admin.</a>
+              </p>
+            </div>
+
+            <div className="wz-access-cards">
+              {ACCESS_CARDS.map((card, index) => (
+                <a href={card.href} className={`wz-portal-card wz-reveal wz-delay-${index + 1}`} key={card.title}>
+                  <div className="wz-portal-icon">{card.icon}</div>
+                  <div className="wz-portal-label">{card.title}</div>
+                  <div className="wz-portal-desc">{card.body}</div>
+                  <div className="wz-portal-arrow">
+                    Sign In
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="wz-stats" id="numbers">
+          <div className="wz-container">
+            <div className="wz-center">
+              <div className="wz-section-eyebrow wz-reveal">By the Numbers</div>
+              <h2 className="wz-section-title wz-reveal wz-delay-1">
+                Scale that speaks<br />for <em>itself</em>
+              </h2>
+            </div>
+            <div className="wz-stats-grid">
+              {STATS.map((stat, index) => (
+                <div className={`wz-stat-card wz-reveal wz-delay-${index}`} key={stat.label}>
+                  <div className="wz-stat-number">
+                    {stat.value}<span className="wz-stat-suffix">{stat.suffix}</span>
+                  </div>
+                  <div className="wz-stat-desc">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="wz-clients" id="customers">
+          <div className="wz-container">
+            <div className="wz-client-title wz-center">
+              <div className="wz-section-eyebrow wz-reveal">Trusted By</div>
+              <h2 className="wz-section-title wz-reveal wz-delay-1">
+                Powering the world's<br />most <em>demanding</em> teams
+              </h2>
+            </div>
+            <div className="wz-logos-grid wz-reveal">
+              {CLIENTS.map((client) => (
+                <div className="wz-logo-cell" key={client}>
+                  <span className="wz-logo-text">{client}</span>
+                </div>
+              ))}
+            </div>
+            <div className="wz-testimonial wz-reveal">
+              <div className="wz-quote">
+                "WorkZen replaced six separate tools we were using. Our ops team now moves twice as fast,
+                and our incident response time dropped by 70%."
+              </div>
+              <div className="wz-author">Michael Torres, VP of Engineering</div>
+              <div className="wz-company">NorthBank Financial Group</div>
+            </div>
+          </div>
+        </section>
+
+        <section className="wz-cta" id="contact">
+          <div className="wz-cta-bg" />
+          <div className="wz-cta-grid" />
+          <div className="wz-container wz-cta-layout">
+            <div>
+              <div className="wz-section-eyebrow wz-reveal">Get in Touch</div>
+              <h2 className="wz-cta-title wz-reveal wz-delay-1">
+                We'd love to<br /><em>hear from you</em>
+              </h2>
+              <p className="wz-cta-sub wz-reveal wz-delay-2">
+                Have a question about WorkZen, pricing, integrations, or enterprise onboarding?
+                Our team is here to help. Fill in the form and we'll get back to you within one business day.
+              </p>
+
+              <div className="wz-check-list wz-reveal wz-delay-3">
+                {CONTACT_POINTS.map((point) => (
+                  <div className="wz-check" key={point}>
+                    <span className="wz-check-icon">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </span>
+                    {point}
+                  </div>
+                ))}
+              </div>
+
+              <div className="wz-contact-links wz-reveal wz-delay-3">
+                <a href="mailto:hello@workzen.io">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                  hello@workzen.io
+                </a>
+                <a href="tel:+18005550100">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11.01h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L7.84 8.17a16 16 0 0 0 6.99 6.99l1.52-1.52a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
+                  </svg>
+                  +1 800 555 0100
+                </a>
+              </div>
+            </div>
+
+            <div className="wz-reveal wz-delay-2">
+              {!submitted ? (
+                <form className="wz-form-card" onSubmit={submitContact}>
+                  <div className="wz-form-grid">
+                    <div className="wz-field">
+                      <label htmlFor="contactFirst">First Name</label>
+                      <input id="contactFirst" name="firstName" value={form.firstName} onChange={updateForm} placeholder="James" />
+                    </div>
+                    <div className="wz-field">
+                      <label htmlFor="contactLast">Last Name</label>
+                      <input id="contactLast" name="lastName" value={form.lastName} onChange={updateForm} placeholder="Mercer" />
+                    </div>
+                  </div>
+                  <div className="wz-field">
+                    <label htmlFor="contactEmail">Work Email</label>
+                    <input id="contactEmail" name="email" type="email" value={form.email} onChange={updateForm} placeholder="james@company.com" />
+                  </div>
+                  <div className="wz-field">
+                    <label htmlFor="contactSubject">Subject</label>
+                    <select id="contactSubject" name="subject" value={form.subject} onChange={updateForm}>
+                      <option value="">Select a topic</option>
+                      <option value="pricing">Pricing and Plans</option>
+                      <option value="integration">Integrations and API</option>
+                      <option value="enterprise">Enterprise Onboarding</option>
+                      <option value="support">Technical Support</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="wz-field">
+                    <label htmlFor="contactMessage">Message</label>
+                    <textarea id="contactMessage" name="message" rows="4" value={form.message} onChange={updateForm} placeholder="Tell us how we can help..." />
+                  </div>
+                  {error ? <div className="wz-error">{error}</div> : null}
+                  <button className="wz-submit" type="submit" disabled={submitting}>
+                    {submitting ? "Sending..." : "Send Message"}
+                  </button>
+                  <p className="wz-privacy">
+                    By submitting, you agree to our <a href="#contact">Privacy Policy</a>. We'll never share your data.
+                  </p>
+                </form>
+              ) : (
+                <div className="wz-success-card">
+                  <div className="wz-success-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                  <div className="wz-success-title">Message received!</div>
+                  <div className="wz-success-body">
+                    Thanks for reaching out. Our team will get back to you within 1 business day.
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <footer className="wz-footer">
+          <div className="wz-footer-brand">
+            <div className="wz-brand-mark"><div className="wz-brand-mark-inner" /></div>
+            <span className="wz-footer-brand-name">Work<span>Zen</span></span>
+          </div>
+          <span className="wz-footer-copy">&copy; 2026 WorkZen Inc. All rights reserved.</span>
+          <div className="wz-footer-links">
+            <a href="#contact">Privacy Policy</a>
+            <a href="#contact">Terms of Use</a>
+            <a href="#numbers">Security</a>
+            <a href="#contact">Contact</a>
+          </div>
+        </footer>
+      </main>
+    </>
+  );
 }

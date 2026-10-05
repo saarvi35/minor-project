@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { getData, patchData } from "../lib/api";
+import { getData, patchData, postData } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import {
   buildUserLabel,
+  alertError,
   extractError,
   formatValue,
   getEntityId,
@@ -66,7 +67,16 @@ export default function TaskDetailsPage() {
   const [loading, setLoading] = useState(!routeTask);
   const [saving, setSaving] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
-  const [errorText, setErrorText] = useState("");
+  const [comments, setComments] = useState([]);
+  const [activities, setActivities] = useState([]);
+  const [commentBody, setCommentBody] = useState("");
+  const [commentSaving, setCommentSaving] = useState(false);
+  const [errorText, setErrorTextState] = useState("");
+  const setErrorText = (message) => {
+    const text = String(message || "").trim();
+    setErrorTextState(text);
+    alertError(text);
+  };
   const [noticeText, setNoticeText] = useState("");
 
   useEffect(() => {
@@ -110,6 +120,13 @@ export default function TaskDetailsPage() {
         if (!active) return;
         setTask(detail);
         setForm(makeTaskForm(detail));
+        const [commentRows, activityRows] = await Promise.all([
+          fetchOptional(`/tasks/${targetId}/comments/`, []),
+          fetchOptional(`/tasks/${targetId}/activity/`, [])
+        ]);
+        if (!active) return;
+        setComments(toArray(commentRows));
+        setActivities(toArray(activityRows));
         setLoading(false);
         return;
       } catch {
@@ -256,10 +273,32 @@ export default function TaskDetailsPage() {
       setForm(makeTaskForm(updated));
       setShowEditForm(false);
       setNoticeText("Task updated.");
+      const activityRows = await getData(`/tasks/${taskId}/activity/`);
+      setActivities(toArray(activityRows));
     } catch (error) {
       setErrorText(extractError(error));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const submitComment = async (event) => {
+    event.preventDefault();
+    const body = commentBody.trim();
+    if (!body || !taskId) return;
+
+    setCommentSaving(true);
+    setErrorText("");
+    try {
+      const comment = await postData(`/tasks/${taskId}/comments/`, { body });
+      setComments((current) => [...current, comment]);
+      setCommentBody("");
+      const activityRows = await getData(`/tasks/${taskId}/activity/`);
+      setActivities(toArray(activityRows));
+    } catch (error) {
+      setErrorText(extractError(error));
+    } finally {
+      setCommentSaving(false);
     }
   };
 
@@ -288,10 +327,6 @@ export default function TaskDetailsPage() {
 
         {loading ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading task...</section>
-        ) : null}
-
-        {errorText ? (
-          <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{errorText}</section>
         ) : null}
 
         {noticeText ? (
@@ -349,6 +384,56 @@ export default function TaskDetailsPage() {
                     <iframe title="Task PDF" src={attachmentUrl} className="h-96 w-full" />
                   </div>
                 ) : null}
+              </article>
+            </section>
+
+            <section className="grid gap-4 lg:grid-cols-[1.35fr_0.85fr]">
+              <article className="rounded-2xl border bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base font-bold text-blue-900">Discussion</h2>
+                    <p className="mt-1 text-sm text-slate-500">Keep decisions and progress updates with the task.</p>
+                  </div>
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-800">{comments.length} comments</span>
+                </div>
+                <form className="mt-4 space-y-2" onSubmit={submitComment}>
+                  <textarea
+                    className="input min-h-24 w-full"
+                    value={commentBody}
+                    onChange={(event) => setCommentBody(event.target.value)}
+                    maxLength={2000}
+                    placeholder="Write an update, question, or decision..."
+                    required
+                  />
+                  <div className="flex justify-end">
+                    <button className="btn-primary" disabled={commentSaving}>{commentSaving ? "Posting..." : "Post comment"}</button>
+                  </div>
+                </form>
+                <div className="mt-5 space-y-3">
+                  {comments.length ? comments.map((comment) => (
+                    <article key={comment.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <strong className="text-slate-800">{comment.author_name || "Team member"}</strong>
+                        <time className="text-slate-500">{comment.created_at ? new Date(comment.created_at).toLocaleString() : ""}</time>
+                      </div>
+                      <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{comment.body}</p>
+                    </article>
+                  )) : <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No discussion yet. Add the first update.</p>}
+                </div>
+              </article>
+
+              <article className="rounded-2xl border bg-white p-4 shadow-sm">
+                <h2 className="text-base font-bold text-blue-900">Activity</h2>
+                <p className="mt-1 text-sm text-slate-500">A clear history of changes to this task.</p>
+                <ol className="mt-5 space-y-4 border-l-2 border-blue-100 pl-4">
+                  {activities.length ? activities.map((activity) => (
+                    <li key={activity.id} className="relative">
+                      <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-blue-600 ring-4 ring-white" />
+                      <p className="text-sm text-slate-700"><strong>{activity.actor_name || "System"}</strong> {activity.summary}</p>
+                      <time className="mt-1 block text-xs text-slate-500">{activity.created_at ? new Date(activity.created_at).toLocaleString() : ""}</time>
+                    </li>
+                  )) : <li className="text-sm text-slate-500">No activity has been recorded yet.</li>}
+                </ol>
               </article>
             </section>
 

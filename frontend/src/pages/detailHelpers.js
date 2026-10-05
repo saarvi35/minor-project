@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000//api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
 
 
 export function toArray(value) {
@@ -19,11 +19,37 @@ export function compactPayload(payload) {
 
 export function extractError(error) {
   if (error?.response?.data) {
-    if (typeof error.response.data === "string") return error.response.data;
-    return JSON.stringify(error.response.data);
+    return formatErrorMessage(error.response.data);
   }
 
   return error?.message || "Request failed";
+}
+
+export function formatErrorMessage(value) {
+  if (!value) return "Request failed";
+  if (typeof value === "string") return value;
+
+  if (typeof value === "object") {
+    if (value.message) return String(value.message);
+    if (value.detail) return String(value.detail);
+    if (value.error) return String(value.error);
+
+    const lines = Object.entries(value).map(([key, item]) => {
+      const text = Array.isArray(item) ? item.join(", ") : typeof item === "object" ? JSON.stringify(item) : String(item);
+      return `${humanizeLabel(key)}: ${text}`;
+    });
+
+    return lines.length ? lines.join("\n") : "Request failed";
+  }
+
+  return String(value);
+}
+
+export function alertError(message) {
+  const text = String(message || "").trim();
+  if (text && typeof window !== "undefined") {
+    window.alert(text);
+  }
 }
 
 export function getEntityId(value) {

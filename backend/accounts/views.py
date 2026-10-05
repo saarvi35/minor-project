@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import LoginSerializer , LogoutSerializer
+from .serializers import GoogleLoginSerializer, LoginSerializer , LogoutSerializer
 from rest_framework.exceptions import ValidationError
 from companies.models import CompanyUser
 from hr.models import Attendance, LeaveRequest
@@ -18,6 +18,19 @@ class LoginView(APIView):
             serializer.is_valid(raise_exception=True)
         except ValidationError as e:
            
+            return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+
+
+class GoogleLoginView(APIView):
+    authentication_classes = []
+
+    def post(self, request):
+        serializer = GoogleLoginSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError as e:
             return Response(e.detail, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.validated_data, status=status.HTTP_200_OK)

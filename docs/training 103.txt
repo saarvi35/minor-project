@@ -1,0 +1,18 @@
+day1
+networking basics
+ipv4 and subnetting
+
+ip configuration of laptop - cmd config ip
+specific private ips of each class
+what is subnet mask
+if network same - can communicate
+else - not
+ipv4 helps in AWS(cloud) for designing architecture for servers
+
+day 2
+subnetting - big network into smaller networks
+cidr notations
+2^32-n - total ips
+total-2 - assignable ips
+2 - broadcast ip and network ip(that is why minus)
+last ip - broadcast address

@@ -1,13 +1,19 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { postData } from "../lib/api";
+import { alertError, extractError } from "./detailHelpers";
 
 export default function SetPasswordPage() {
   const { token } = useParams();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [result, setResult] = useState("");
-  const [error, setError] = useState("");
+  const [, setErrorState] = useState("");
+  const setError = (message) => {
+    const text = String(message || "").trim();
+    setErrorState("");
+    alertError(text);
+  };
   const [loading, setLoading] = useState(false);
 
   const submit = async (e) => {
@@ -36,7 +42,7 @@ export default function SetPasswordPage() {
       setPassword("");
       setConfirmPassword("");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(extractError(err));
     } finally {
       setLoading(false);
     }
@@ -91,7 +97,6 @@ export default function SetPasswordPage() {
           <Link to="/login" className="font-semibold text-blue-700 hover:underline">Login here</Link>
         </p>
 
-        {error ? <p className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">{error}</p> : null}
         {result ? <p className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-700">{result}</p> : null}
       </form>
     </main>

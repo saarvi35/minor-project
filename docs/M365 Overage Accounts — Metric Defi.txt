@@ -1,0 +1,165 @@
+M365 Overage Accounts — Metric Definitions
+
+  Entitlement Metrics
+
+  ---
+  Entitled Capacity FEGB (String / Dimension)
+
+  LOD calculation fixed at [ACCOUNT_NAME, BILLINGPERIODENDDATE]. Returns:
+  - "Customer Hosted" — if any non-DPC entitlement contains "CUSTOMER" in the feature marketing name
+  - "Unlimited GB" — if any non-DPC, non-SaaS entitlement has capacity = 'Unlimited'/'Unlimited GB', or if the account has USL users but no FEGB
+  entitlement
+  - Otherwise → SUM(FEGB entitled capacity) as a string
+
+  ---
+  Entitled Capacity DPC (String / Dimension)
+
+  LOD fixed at [ACCOUNT_NAME, BILLINGPERIODENDDATE]. Only looks at DPC entitlements (SKU starts with RS-GB-MS-). Returns:
+  - "Unlimited GB" — if the DPC entitlement has unlimited capacity
+  - Otherwise → SUM(DPC entitled capacity GB) as a string
+
+  ---
+  M365 Entitled User Licenses (Integer / Measure)
+
+  INT({ FIXED [POLARIS_ACCOUNT_NAME], [Report_Month], [ACCOUNT_NAME],
+        [ENTITLEMENT_ID], [ENTITLEMENT_NAME], [START_DATE], [END_DATE]
+      : MAX([ENTITLED_LICENSED_M365]) })
+  Row-level LOD that picks the max licensed M365 user count per entitlement.
+
+  ---
+  USL Entitled User Licenses (Integer / Measure)
+
+  INT({ FIXED [POLARIS_ACCOUNT_NAME], [Report_Month], [ACCOUNT_NAME],
+        [ENTITLEMENT_ID], [ENTITLEMENT_NAME], [START_DATE], [END_DATE]
+      : MAX([USL_ENTITLED_USERS]) })
+  Same pattern as above but reads the Universal SaaS License user entitlement field.
+
+  ---
+  License Consumption Metrics
+
+  ---
+  Consumed Licenses (String / Dimension)
+
+  IF [IS_AUTHENTICATED] = False
+  THEN 'CTA: Authenticate'
+  ELSE STR(IFNULL({ FIXED [POLARIS_ACCOUNT_NAME], [Report_Month], [ACCOUNT_NAME]
+                   : MAX([CONSUMED_LICENSES]) }, 0))
+  END
+  Shows actual M365 user license consumption per account/month. Returns an auth prompt if the M365 tenant is not authenticated.
+
+  ---
+  Overused Licenses (String / Measure)
+
+  IF MIN([IS_AUTHENTICATED]) = False
+  THEN 'CTA: Authenticate'
+  ELSE STR( MAX(Consumed Licenses) - SUM(Entitled Licenses), floor=0 )
+  END
+  Computed as MAX(0, Consumed Licenses − Total Entitled Licenses). Returns auth CTA when unauthenticated.
+
+  ---
+  FEGB Estimate Metrics
+
+  ---
+  Total FEGB Estimate (String / Measure)
+
+  IF Exchange_FEGB IS NULL OR OneDrive_FEGB IS NULL OR SharePoint_FEGB IS NULL
+  THEN 'No Active M365 Org'
+  ELSE STR(ROUND(Exchange_FEGB + OneDrive_FEGB + SharePoint_FEGB, 2))
+  END
+  Sum of per-workload customer FEGB estimates (Exchange + OneDrive + SharePoint). Each is MAX(snappable GB) filtered by snappable type. Returns "No
+  Active M365 Org" if any workload has no data.
+
+  ---
+  Overused FEGB Estimate (Real / Measure)
+
+  IF Entitled Capacity = "Unlimited GB" THEN 0
+  ELSE MAX(Total FEGB Estimate − Entitled Capacity Numeric, 0)
+  END
+  FEGB consumption above the entitled FEGB threshold, floored at 0. Unlimited accounts are always 0.
+
+  ---
+  DPC Consumption Metrics
+
+  ---
+  Total Consumed DPC GB (Real / Measure)
+
+  SUM({ FIXED [POLARIS_ACCOUNT_NAME], [Report_Month], [ACCOUNT_NAME]
+       : MAX([LIVE_DATA_SIZE_GB]) })
+  Total DPC live data backed up (GB), deduplicated per account/month via LOD.
+
+  ---
+  %MoM Consumed DPC GB (String / Measure)
+
+  (Current Month DPC GB − Prior Month DPC GB) / Prior Month DPC GB
+  Displayed as ▲X.XX% or ▼X.XX%. Blank when change is 0. The underlying real field (%MoM Consumed Capacity Int) drives the DPC Validation Criteria
+  Met check.
+
+  ---
+  Overused DPC GB (Real / Measure)
+
+  Source field pulled directly from the Snowflake model — no Tableau calculation. Represents DPC GB consumed above the entitled DPC threshold.
+
+  ---
+  DPC Credit Eligibility Metrics
+
+  ---
+  Eligible for DPC Credit (String / Measure)
+
+  Source field from Snowflake. Flags accounts as eligible for the DPC credit program (values: "Yes" / "No"). Logic is resolved upstream in the
+  stored procedure / dbt model.
+
+  ---
+  DPC Validation Criteria Met (String / Measure)
+
+  IF ABS(%MoM Consumed DPC GB) <= 0.03 THEN 'Yes' ELSE 'No' END
+  'Yes' if month-over-month DPC consumption change is within ±3% (i.e., usage is stable). This is a prerequisite for DPC credit eligibility.
+
+  ---
+  DPC Credit CTA (String / Measure)
+
+  Source field from Snowflake. The copy/derived version in the workbook resolves to:
+
+  ┌───────────────────────────────────────────────┬───────────────────────┐
+  │                   Condition                   │         Value         │
+  ├───────────────────────────────────────────────┼───────────────────────┤
+  │ Not eligible (Eligible for DPC Credit = "No") │ '' (blank)            │
+  ├───────────────────────────────────────────────┼───────────────────────┤
+  │ Unlimited GB or Customer Hosted entitlement   │ "No overage"          │
+  ├───────────────────────────────────────────────┼───────────────────────┤
+  │ DPC Consumed ≤ Entitled Capacity              │ "No overage"          │
+  ├───────────────────────────────────────────────┼───────────────────────┤
+  │ FEGB Estimate > DPC Consumed (script needed)  │ "CTA: Run Script"     │
+  ├───────────────────────────────────────────────┼───────────────────────┤
+  │ All other overage cases                       │ "CTA: Include in R/E" │
+  └───────────────────────────────────────────────┴───────────────────────┘
+
+  ---
+  Potential DPC Credit Estimate (String / Measure)
+
+  IF Not Eligible         → '' (blank)
+  IF Unlimited/CustHosted → "No overage"
+  IF DPC ≤ Entitlement    → "No overage"
+  IF DPC > FEGB Estimate  → ROUND(DPC GB − MAX(FEGB Estimate, Entitlement), 2)
+  ELSE                    → "CTA: Run Script"
+  END
+  Estimates GB eligible for DPC credit. When DPC consumption exceeds both the FEGB estimate and entitlement, the credit-eligible GB = DPC GB −
+  MAX(FEGB Estimate, Entitlement).
+
+  
+
+  ---
+  ACV Overage Metrics
+
+  ---
+  Potential $ACV - User License Overage (String / Measure)
+
+  Overused Licenses × $1 × 12 months × (1 − 60% discount)
+  = Overused Licenses × $4.80 annualized
+  Returns 'CTA: Authenticate' for unauthenticated accounts. Rate: $1/user/month at 40% net after 60% discount.
+
+  ---
+  Potential $ACV - FEGB Estimate Overage (Real / Measure)
+
+  Overused FEGB Estimate (GB) × $0.05 × 12 months × (1 − 50% discount)
+  = Overused FEGB GB × $0.30 annualized
+  Rate: $0.05/GB/month at 50% net after 50% discount.

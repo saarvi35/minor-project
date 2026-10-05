@@ -1,29 +1,272 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { postData } from "../lib/api";
-import logo from "./logo.png";
+import { alertError, extractError } from "./detailHelpers";
 
 const defaultPayload = {
   owner_name: "",
   owner_email: "",
   password: "",
-  company: { name: "", email: "", phone: "", size: "", address: "" }
+  company: { name: "", email: "", phone: "", size: "", address: "" },
 };
+
+const COMPANY_SIZES = [
+  "1 - 10 employees",
+  "11 - 50 employees",
+  "51 - 200 employees",
+  "201 - 500 employees",
+  "500+ employees",
+];
+
+const css = `
+.registration-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 16px;
+  position: relative;
+  overflow: auto;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+.registration-bg {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 48%, rgba(37, 99, 235, 0.13) 0%, transparent 64%),
+    radial-gradient(ellipse 38% 42% at 15% 85%, rgba(22, 163, 74, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 42% at 85% 15%, rgba(37, 99, 235, 0.14) 0%, transparent 62%),
+    linear-gradient(135deg, var(--ui-bg) 0%, var(--ui-bg-soft) 52%, var(--ui-bg) 100%);
+  z-index: 0;
+}
+
+html[data-theme="dark"] .registration-bg {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 48%, rgba(75, 139, 255, 0.18) 0%, transparent 64%),
+    radial-gradient(ellipse 38% 42% at 15% 85%, rgba(57, 211, 155, 0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 42% at 85% 15%, rgba(75, 139, 255, 0.2) 0%, transparent 62%),
+    linear-gradient(135deg, var(--ui-bg) 0%, var(--ui-bg-soft) 52%, var(--ui-bg) 100%);
+}
+
+.registration-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(37, 99, 235, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.06) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 92% 88% at 50% 50%, black, transparent);
+}
+
+html[data-theme="dark"] .registration-grid {
+  background-image:
+    linear-gradient(rgba(75, 139, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(75, 139, 255, 0.08) 1px, transparent 1px);
+}
+
+.registration-noise {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  opacity: 0.025;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+.registration-card {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 500px;
+  padding: 40px 36px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 20px;
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow);
+  backdrop-filter: blur(18px);
+}
+
+html[data-theme="dark"] .registration-card {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.registration-title {
+  margin: 0 0 4px;
+  color: var(--ui-text);
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.registration-title span {
+  display: inline-block;
+  border-bottom: 3px solid var(--ui-primary);
+  padding-bottom: 2px;
+}
+
+.registration-subtitle {
+  margin: 0 0 28px;
+  color: var(--ui-text-muted);
+  font-size: 0.82rem;
+}
+
+.registration-section-label {
+  margin: 18px 0 10px;
+  color: var(--ui-primary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.registration-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.registration-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.registration-field label {
+  margin-bottom: 5px;
+  color: var(--ui-text-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.registration-field input,
+.registration-field select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--ui-border);
+  border-radius: 8px;
+  outline: none;
+  background: var(--ui-bg-soft);
+  color: var(--ui-text);
+  font-family: var(--ui-font);
+  font-size: 0.87rem;
+  transition: border 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.registration-field input:focus,
+.registration-field select:focus {
+  border-color: var(--ui-primary);
+  background: var(--ui-bg-elevated);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+html[data-theme="dark"] .registration-field input:focus,
+html[data-theme="dark"] .registration-field select:focus {
+  box-shadow: 0 0 0 3px rgba(75, 139, 255, 0.16);
+}
+
+.registration-field input::placeholder {
+  color: var(--ui-text-muted);
+}
+
+.registration-field select {
+  cursor: pointer;
+}
+
+.registration-field option {
+  background: var(--ui-bg-elevated);
+  color: var(--ui-text);
+}
+
+.registration-button {
+  width: 100%;
+  margin-top: 20px;
+  padding: 13px;
+  border: none;
+  border-radius: 10px;
+  background: var(--ui-primary);
+  color: #ffffff;
+  cursor: pointer;
+  font-family: var(--ui-font);
+  font-size: 0.95rem;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+  transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+}
+
+.registration-button:hover {
+  background: var(--ui-primary-strong);
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.34);
+}
+
+.registration-button:active {
+  transform: scale(0.98);
+}
+
+.registration-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+  transform: none;
+}
+
+.registration-login-link {
+  margin-top: 18px;
+  color: var(--ui-text-muted);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.registration-login-link a {
+  color: var(--ui-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.registration-login-link a:hover {
+  color: var(--ui-primary-strong);
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .registration-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .registration-card {
+    padding: 28px 20px;
+  }
+}
+`;
 
 export default function RegisterPage() {
   const [form, setForm] = useState(defaultPayload);
-  const [error, setError] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [, setErrorState] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const setError = (message) => {
+    const text = String(message || "").trim();
+    setErrorState("");
+    alertError(text);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
+    if (form.password !== confirmPassword) {
+      setError("Password and confirm password do not match.");
+      return;
+    }
+
     setLoading(true);
     setError("");
     try {
       await postData("/register/", form);
       setForm(defaultPayload);
+      setConfirmPassword("");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(extractError(err));
     } finally {
       setLoading(false);
     }
@@ -34,103 +277,138 @@ export default function RegisterPage() {
     setForm((s) => ({ ...s, company: { ...s.company, [k]: e.target.value } }));
 
   return (
-    <main className="ui-shell flex min-h-screen items-center justify-center px-6 py-10">
-      <form onSubmit={submit} className="ui-panel w-full max-w-5xl rounded-[2rem] p-6 md:p-8 lg:p-10">
-        <div className="mb-8 grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
-          <section className="ui-hero-card p-8">
-            <img
-              src={logo}
-              alt="WorkZen"
-              className="mb-5 h-20 w-20 rounded-3xl border border-blue-100 object-cover shadow-lg shadow-blue-100"
+    <>
+      <style>{css}</style>
+      <main className="registration-page">
+        <div className="registration-bg" />
+        <div className="registration-grid" />
+        <div className="registration-noise" />
+
+        <form onSubmit={submit} className="registration-card">
+          <h2 className="registration-title"><span>Registration</span></h2>
+          <p className="registration-subtitle">Fill in the details below to create your account</p>
+
+          <div className="registration-section-label">Company Information</div>
+
+          <div className="registration-field">
+            <label htmlFor="companyName">Company Name</label>
+            <input
+              id="companyName"
+              type="text"
+              placeholder="e.g. Acme Pvt. Ltd."
+              value={form.company.name}
+              onChange={setC("name")}
+              required
             />
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.28em] text-blue-700">
-              Workspace setup
-            </p>
-            <h1 className="ui-brand text-5xl leading-tight text-slate-900">
-              Create your company space with the new UI.
-            </h1>
-            <p className="mt-5 max-w-md text-base leading-8 text-slate-600">
-              We are only changing the frontend presentation. Your payload keys and backend contract stay untouched.
-            </p>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {[
-                ["Owner setup", "Register account owner details first"],
-                ["Company profile", "Add organization information once"],
-                ["Same API payload", "No variable names changed"]
-              ].map(([title, body]) => (
-                <div key={title} className="rounded-2xl border border-blue-100 bg-white/90 p-4 shadow-sm">
-                  <p className="font-semibold text-slate-900">{title}</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
-                </div>
+          </div>
+
+          <div className="registration-grid-2">
+            <div className="registration-field">
+              <label htmlFor="companyEmail">Company Email</label>
+              <input
+                id="companyEmail"
+                type="email"
+                placeholder="info@company.com"
+                value={form.company.email}
+                onChange={setC("email")}
+                required
+              />
+            </div>
+            <div className="registration-field">
+              <label htmlFor="companyPhone">Phone Number</label>
+              <input
+                id="companyPhone"
+                type="tel"
+                placeholder="+91 98765 43210"
+                value={form.company.phone}
+                onChange={setC("phone")}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="registration-field">
+            <label htmlFor="companyAddress">Address</label>
+            <input
+              id="companyAddress"
+              type="text"
+              placeholder="Street, City, State"
+              value={form.company.address}
+              onChange={setC("address")}
+            />
+          </div>
+
+          <div className="registration-field">
+            <label htmlFor="companySize">Company Size</label>
+            <select id="companySize" value={form.company.size} onChange={setC("size")} required>
+              <option value="" disabled>Select company size</option>
+              {COMPANY_SIZES.map((size) => (
+                <option value={size} key={size}>{size}</option>
               ))}
+            </select>
+          </div>
+
+          <div className="registration-section-label">Owner Information</div>
+
+          <div className="registration-grid-2">
+            <div className="registration-field">
+              <label htmlFor="ownerName">Owner Name</label>
+              <input
+                id="ownerName"
+                type="text"
+                placeholder="Full name"
+                value={form.owner_name}
+                onChange={set("owner_name")}
+                required
+              />
             </div>
-          </section>
-
-          <section>
-            <div className="mb-6">
-              <h2 className="text-3xl font-semibold text-slate-900">Register company</h2>
-              <p className="mt-2 text-sm text-slate-500">Fill the same fields with a refreshed interface.</p>
+            <div className="registration-field">
+              <label htmlFor="ownerEmail">Owner Email</label>
+              <input
+                id="ownerEmail"
+                type="email"
+                placeholder="owner@email.com"
+                value={form.owner_email}
+                onChange={set("owner_email")}
+                required
+              />
             </div>
+          </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="ui-label">Owner Name</span>
-                <input className="ui-input" value={form.owner_name} onChange={set("owner_name")} required />
-              </label>
-              <label className="block">
-                <span className="ui-label">Owner Email</span>
-                <input className="ui-input" type="email" value={form.owner_email} onChange={set("owner_email")} required />
-              </label>
-              <label className="block md:col-span-2">
-                <span className="ui-label">Owner Password</span>
-                <input className="ui-input" type="password" value={form.password} onChange={set("password")} required />
-              </label>
+          <div className="registration-grid-2">
+            <div className="registration-field">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                placeholder="Create password"
+                value={form.password}
+                onChange={set("password")}
+                required
+              />
             </div>
-
-            <div className="my-6 h-px bg-slate-800" />
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="block">
-                <span className="ui-label">Company Name</span>
-                <input className="ui-input" value={form.company.name} onChange={setC("name")} required />
-              </label>
-              <label className="block">
-                <span className="ui-label">Company Email</span>
-                <input className="ui-input" type="email" value={form.company.email} onChange={setC("email")} required />
-              </label>
-              <label className="block">
-                <span className="ui-label">Phone</span>
-                <input className="ui-input" value={form.company.phone} onChange={setC("phone")} required />
-              </label>
-              <label className="block">
-                <span className="ui-label">Size</span>
-                <input className="ui-input" value={form.company.size} onChange={setC("size")} required />
-              </label>
-              <label className="block md:col-span-2">
-                <span className="ui-label">Address</span>
-                <textarea className="ui-textarea min-h-28" value={form.company.address} onChange={setC("address")} />
-              </label>
+            <div className="registration-field">
+              <label htmlFor="confirmPassword">Confirm Password</label>
+              <input
+                id="confirmPassword"
+                type="password"
+                placeholder="Repeat password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
             </div>
+          </div>
 
-            {error ? (
-              <p className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                {error}
-              </p>
-            ) : null}
+          <button className="registration-button" disabled={loading}>
+            {loading ? "Registering..." : "Register Now"}
+          </button>
 
-            <button className="ui-button-primary mt-6 w-full" disabled={loading}>
-              {loading ? "Submitting..." : "Register Company"}
-            </button>
-
-            <p className="mt-5 text-center text-sm text-slate-500">
-              Already registered?{" "}
-              <Link to="/login" className="font-semibold text-blue-700 hover:text-blue-800">
-                Back to login
-              </Link>
-            </p>
-          </section>
-        </div>
-      </form>
-    </main>
+          <p className="registration-login-link">
+            Already have an account? <Link to="/login">Login now</Link>
+          </p>
+        </form>
+      </main>
+    </>
   );
 }

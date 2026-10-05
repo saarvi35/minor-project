@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { getData, patchData } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import {
+  alertError,
   compactPayload,
   extractError,
   formatValue,
@@ -52,7 +53,12 @@ export default function UserDetailsPage() {
   const [detailsRows, setDetailsRows] = useState([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState("");
-  const [errorText, setErrorText] = useState("");
+  const [errorText, setErrorTextState] = useState("");
+  const setErrorText = (message) => {
+    const text = String(message || "").trim();
+    setErrorTextState(text);
+    alertError(text);
+  };
   const [noticeText, setNoticeText] = useState("");
 
   useEffect(() => {
@@ -118,12 +124,11 @@ export default function UserDetailsPage() {
   }
 }
 
-if (!active) return;
-// Agar routeUser already available hai toh error mat dikhao
-if (!routeUser) {
-  setErrorText("User details not found or access denied.");
-}
-setLoading(false);
+      if (!active) return;
+      if (!routeUser) {
+        setErrorText("User details not found or access denied.");
+      }
+      setLoading(false);
     };
 
     loadPage();
@@ -218,6 +223,7 @@ setLoading(false);
     } catch {
       setDetailsLoading(false);
       setDetailsError("Unable to fetch full task details.");
+      alertError("Unable to fetch full task details.");
     }
   };
 
@@ -246,10 +252,6 @@ setLoading(false);
 
         {loading ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading user...</section>
-        ) : null}
-
-        {errorText ? (
-          <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{errorText}</section>
         ) : null}
 
         {noticeText ? (
@@ -349,7 +351,6 @@ setLoading(false);
                     <button type="button" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700" onClick={() => setShowDetailsModal(false)}>Close</button>
                   </div>
                   {detailsLoading ? <p className="text-sm text-slate-500">Loading details...</p> : null}
-                  {!detailsLoading && detailsError ? <p className="text-sm text-rose-600">{detailsError}</p> : null}
                   {!detailsLoading && !detailsError ? (
                     <div className="grid gap-3 md:grid-cols-2">
                       {detailsRows.map(([key, value]) => (

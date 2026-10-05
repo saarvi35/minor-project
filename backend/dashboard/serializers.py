@@ -4,6 +4,7 @@ from companies.models import CompanyUser
 from hr.models import LeaveRequest
 from projects.models import Project
 from tasks.models import Task
+from .models import ContactMessage
 
 
 def get_company_user_name(company_user):
@@ -205,3 +206,24 @@ class ClientProjectProgressSerializer(serializers.ModelSerializer):
             "budget",
             "actual_cost"
         ]
+
+
+class ContactMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactMessage
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "email",
+            "subject",
+            "message",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def validate_subject(self, value):
+        valid_subjects = {choice[0] for choice in ContactMessage.SUBJECT_CHOICES}
+        if value not in valid_subjects:
+            raise serializers.ValidationError("Please select a valid topic.")
+        return value

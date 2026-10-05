@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from companies.models import CompanyUser
-from .models import Task
+from projects.models import Project
+from .models import Task, TaskActivity, TaskComment, TaskNotification
 
 
 def get_company_user_name(company_user):
@@ -86,3 +87,39 @@ class TaskSerializer(serializers.ModelSerializer):
                     )
 
                     self.fields["assigned_to"].queryset = queryset
+
+                if "project" in self.fields:
+                    self.fields["project"].queryset = Project.objects.filter(company=company)
+
+
+class TaskCommentSerializer(serializers.ModelSerializer):
+    author_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TaskComment
+        fields = ["id", "task", "author", "author_name", "body", "created_at", "updated_at"]
+        read_only_fields = ["task", "author", "author_name", "created_at", "updated_at"]
+
+    def get_author_name(self, obj):
+        return get_company_user_name(obj.author)
+
+
+class TaskActivitySerializer(serializers.ModelSerializer):
+    actor_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TaskActivity
+        fields = ["id", "task", "actor", "actor_name", "event_type", "summary", "created_at"]
+        read_only_fields = fields
+
+    def get_actor_name(self, obj):
+        return get_company_user_name(obj.actor)
+
+
+class TaskNotificationSerializer(serializers.ModelSerializer):
+    task_title = serializers.CharField(source="task.title", read_only=True)
+
+    class Meta:
+        model = TaskNotification
+        fields = ["id", "task", "task_title", "event_type", "message", "is_read", "created_at"]
+        read_only_fields = fields

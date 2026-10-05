@@ -4,6 +4,7 @@ import { getData, patchData } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import {
   buildUserLabel,
+  alertError,
   compactPayload,
   extractError,
   formatValue,
@@ -52,7 +53,12 @@ export default function ProjectDetailsPage() {
   const [loading, setLoading] = useState(!routeProject);
   const [saving, setSaving] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
-  const [errorText, setErrorText] = useState("");
+  const [errorText, setErrorTextState] = useState("");
+  const setErrorText = (message) => {
+    const text = String(message || "").trim();
+    setErrorTextState(text);
+    alertError(text);
+  };
   const [noticeText, setNoticeText] = useState("");
 
   useEffect(() => {
@@ -231,6 +237,16 @@ export default function ProjectDetailsPage() {
                 Back
               </button>
               {!loading && !errorText && project ? (
+                <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition hover:bg-blue-100" onClick={() => navigate(`/project/${projectId}/board`)}>
+                  Open board
+                </button>
+              ) : null}
+              {!loading && !errorText && project ? (
+                <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition hover:bg-blue-100" onClick={() => navigate(`/project/${projectId}/timeline`)}>
+                  Open timeline
+                </button>
+              ) : null}
+              {!loading && !errorText && project ? (
                 <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" onClick={() => setShowEditForm((value) => !value)}>
                   {showEditForm ? "Close Editor" : "Edit Project"}
                 </button>
@@ -241,10 +257,6 @@ export default function ProjectDetailsPage() {
 
         {loading ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading project...</section>
-        ) : null}
-
-        {errorText ? (
-          <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{errorText}</section>
         ) : null}
 
         {noticeText ? (

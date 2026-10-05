@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import JsonViewer from "../components/JsonViewer";
+import BrandMark from "../components/BrandMark";
 import { getData, patchData, postData } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import logo from "./logo.png";
+import { alertError, extractError } from "./detailHelpers";
 const readEndpoints = [
   { label: "Current User", url: "/current-user/" },
   { label: "Overview", url: "/overview/" },
@@ -29,7 +30,12 @@ export default function DashboardPage() {
   const { user, logout } = useAuth();
 
   const [responseMap, setResponseMap] = useState({});
-  const [error, setError] = useState("");
+  const [, setErrorState] = useState("");
+  const setError = (message) => {
+    const text = String(message || "").trim();
+    setErrorState("");
+    alertError(text);
+  };
   const [successMsg, setSuccessMsg] = useState("");
   const [loadingKey, setLoadingKey] = useState("");
 
@@ -93,7 +99,7 @@ export default function DashboardPage() {
       const data = await getData(url);
       setResponseMap((s) => ({ ...s, [url]: data }));
     } catch (err) {
-      setError(`${url}: ${JSON.stringify(err?.response?.data || err.message)}`);
+      setError(`${url}: ${extractError(err)}`);
     } finally {
       setLoadingKey("");
     }
@@ -113,7 +119,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, taskCreate: data }));
       setSuccessMsg("✅ Task created successfully!");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(extractError(err));
     }
   };
 
@@ -133,7 +139,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, projectCreate: data }));
       setSuccessMsg("✅ Project created successfully!");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(extractError(err));
     }
   };
 
@@ -146,7 +152,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, roleCreate: data }));
       setSuccessMsg("✅ Role created successfully!");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(extractError(err));
     }
   };
 
@@ -163,7 +169,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, userInvite: data }));
       setSuccessMsg("✅ User invited successfully!");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(extractError(err));
     }
   };
 
@@ -176,7 +182,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, leaveApply: data }));
       setSuccessMsg("✅ Leave application submitted!");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(extractError(err));
     }
   };
 
@@ -189,7 +195,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, departmentCreate: data }));
       setSuccessMsg("✅ Department created successfully!");
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(extractError(err));
     }
   };
 
@@ -202,7 +208,7 @@ export default function DashboardPage() {
       setResponseMap((s) => ({ ...s, leaveStatusPatch: data }));
       setSuccessMsg(`✅ Leave status updated to ${leavePatchForm.status}!`);
     } catch (err) {
-      setError(JSON.stringify(err?.response?.data || err.message));
+      setError(extractError(err));
     }
   };
 
@@ -215,7 +221,7 @@ export default function DashboardPage() {
         <div style={{ position: "absolute", bottom: -20, left: 200, width: 80, height: 80, borderRadius: "50%", background: "rgba(30,77,183,0.25)", pointerEvents: "none" }} />
         <div className="relative flex flex-wrap items-center justify-between gap-3 px-6 py-5">
           <div className="flex items-center gap-4">
-            <img src={logo} alt="WorkZen" style={{ width: 50, height: 50, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(255,255,255,0.3)", boxShadow: "0 0 0 4px rgba(30,77,183,0.35)" }} />
+            <BrandMark size={44} variant="light" />
             <div>
               <h1 className="text-3xl font-extrabold tracking-wide" style={{ fontFamily: "'Georgia', serif", letterSpacing: "0.01em" }}>WorkZen</h1>
               <div className="flex items-center gap-2 mt-0.5">
@@ -231,7 +237,6 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {error && <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {successMsg && <p className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">{successMsg}</p>}
 
       <section className="mb-6 overflow-hidden rounded-2xl shadow-sm" style={{ border: "1px solid #dbeafe" }}>

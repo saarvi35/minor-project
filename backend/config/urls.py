@@ -18,8 +18,10 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from .health import health_check
 
 urlpatterns = [
+    path('api/health/', health_check, name='health-check'),
     path('admin/', admin.site.urls),
     path('api/', include('accounts.urls')),
     path('api/', include('dashboard.urls')),
@@ -27,6 +29,8 @@ urlpatterns = [
     path('api/', include('companies.urls')),
     path('api/', include('projects.urls')),
     path('api/', include('hr.urls')),
+    path('api/', include('ai_insights.urls')),
+    path('api/', include('workflows.urls')),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

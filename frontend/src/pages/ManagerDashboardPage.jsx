@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import DataTable from "../components/DataTable";
+import BrandMark from "../components/BrandMark";
 import StatusPill from "../components/StatusPill";
 import { deleteData, getData, patchData, postData, putData } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import logo from "./logo.png";
 
 const MENUS = {
   owner: [
@@ -78,6 +78,32 @@ const EMPTY_TASK_ANALYTICS = {
   overdue_tasks: 0
 };
 
+const EMPTY_AI_INSIGHTS = {
+  analyticsSummary: {
+    metrics: {},
+    insights: [],
+    manager_focus: [],
+    top_task_risks: [],
+    top_project_risks: []
+  },
+  delayPredictions: {
+    summary: {},
+    task_predictions: [],
+    project_predictions: []
+  },
+  escalations: {
+    total: 0,
+    escalations: []
+  },
+  taskPriorities: {
+    total: 0,
+    recommended_order: []
+  },
+  workload: {
+    recommended_assignees: []
+  }
+};
+
 const EMPTY_HR_OVERVIEW = {
   total_employees: 0,
   attendance: {
@@ -142,9 +168,24 @@ function compactPayload(payload) {
 function extractError(err) {
   if (err?.response?.data) {
     if (typeof err.response.data === "string") return err.response.data;
-    return JSON.stringify(err.response.data);
+    if (err.response.data.message) return String(err.response.data.message);
+    if (err.response.data.detail) return String(err.response.data.detail);
+    if (err.response.data.error) return String(err.response.data.error);
+    return Object.entries(err.response.data)
+      .map(([key, value]) => {
+        const message = Array.isArray(value) ? value.join(", ") : typeof value === "object" ? JSON.stringify(value) : String(value);
+        return `${humanizeDetailLabel(key)}: ${message}`;
+      })
+      .join("\n");
   }
   return err?.message || "Request failed";
+}
+
+function alertError(message) {
+  const text = String(message || "").trim();
+  if (text && typeof window !== "undefined") {
+    window.alert(text);
+  }
 }
 
 function getEntityId(value) {
@@ -592,6 +633,12 @@ function DashboardThemeStyles() {
         border: 1px solid #c7d7ee !important;
       }
 
+      .dashboard-shell.owner-theme .btn-secondary {
+        background: var(--owner-card-soft) !important;
+        color: var(--owner-text) !important;
+        border-color: var(--owner-border) !important;
+      }
+
       .dashboard-shell.owner-theme {
         --owner-bg: #f6f8fc;
         --owner-bg-soft: #eef2f8;
@@ -670,6 +717,7 @@ function DashboardThemeStyles() {
 
       .dashboard-shell.owner-theme .owner-nav-btn {
         color: var(--owner-text-soft) !important;
+        background: transparent !important;
         border: 1px solid transparent !important;
         border-left: 3px solid transparent !important;
       }
@@ -683,10 +731,35 @@ function DashboardThemeStyles() {
 
       .dashboard-shell.owner-theme .owner-nav-btn.owner-nav-btn-active {
         background: linear-gradient(135deg, var(--owner-accent-strong), var(--owner-accent)) !important;
-        color: #02120d !important;
+        color: #ffffff !important;
         border-color: rgba(39, 197, 138, 0.45) !important;
         border-left: 3px solid #8df4cb !important;
         box-shadow: 0 8px 20px rgba(17, 168, 109, 0.25) !important;
+      }
+
+      html[data-theme="dark"] .dashboard-shell.owner-theme .owner-nav-btn.owner-nav-btn-active {
+        color: #06130e !important;
+      }
+
+      html[data-theme="dark"] .dashboard-shell.owner-theme .bg-white,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .bg-slate-50,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .bg-blue-50,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .bg-emerald-50,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .bg-amber-50,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .bg-rose-50,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .bg-violet-50,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .bg-cyan-50 {
+        background: var(--owner-card-soft) !important;
+      }
+
+      html[data-theme="dark"] .dashboard-shell.owner-theme .text-blue-800,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .text-emerald-700,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .text-amber-700,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .text-rose-700,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .text-violet-800,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .text-blue-700,
+      html[data-theme="dark"] .dashboard-shell.owner-theme .text-emerald-800 {
+        color: var(--owner-text) !important;
       }
 
       .dashboard-shell.owner-theme input,
@@ -778,12 +851,18 @@ export default function ManagerDashboardPage() {
   });
 
   const [busyKey, setBusyKey] = useState("");
-  const [errorText, setErrorText] = useState("");
+  const [, setErrorTextState] = useState("");
+  const setErrorText = (message) => {
+    const text = String(message || "").trim();
+    setErrorTextState("");
+    alertError(text);
+  };
 
   const [ownerOverview, setOwnerOverview] = useState(EMPTY_OWNER_OVERVIEW);
   const [managerOverview, setManagerOverview] = useState(EMPTY_MANAGER_OVERVIEW);
   const [hrOverview, setHrOverview] = useState(EMPTY_HR_OVERVIEW);
   const [taskAnalytics, setTaskAnalytics] = useState(EMPTY_TASK_ANALYTICS);
+  const [aiInsights, setAiInsights] = useState(EMPTY_AI_INSIGHTS);
 
   const [companies, setCompanies] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -1055,7 +1134,7 @@ export default function ManagerDashboardPage() {
     return filtered.length ? filtered : base;
   }, [roleType, permissions]);
 
-  const isOwnerPortal = roleType === "owner";
+  const isOwnerPortal = true;
 
   const persistActiveMenu = (menuId) => {
     if (typeof window === "undefined" || !menuId) return;
@@ -1114,6 +1193,24 @@ export default function ManagerDashboardPage() {
     } finally {
       setBusyKey("");
     }
+  };
+
+  const loadAiInsights = async () => {
+    const [analyticsSummary, delayPredictions, escalations, taskPriorities, workload] = await Promise.all([
+      fetchOr("/ai/analytics-summary/", EMPTY_AI_INSIGHTS.analyticsSummary),
+      fetchOr("/ai/delay-predictions/", EMPTY_AI_INSIGHTS.delayPredictions),
+      fetchOr("/ai/escalations/", EMPTY_AI_INSIGHTS.escalations),
+      fetchOr("/ai/task-priorities/", EMPTY_AI_INSIGHTS.taskPriorities),
+      fetchOr("/ai/workload-balancing/", EMPTY_AI_INSIGHTS.workload)
+    ]);
+
+    setAiInsights({
+      analyticsSummary: toObject(analyticsSummary, EMPTY_AI_INSIGHTS.analyticsSummary),
+      delayPredictions: toObject(delayPredictions, EMPTY_AI_INSIGHTS.delayPredictions),
+      escalations: toObject(escalations, EMPTY_AI_INSIGHTS.escalations),
+      taskPriorities: toObject(taskPriorities, EMPTY_AI_INSIGHTS.taskPriorities),
+      workload: toObject(workload, EMPTY_AI_INSIGHTS.workload)
+    });
   };
 
   const loadOwnerData = async () => {
@@ -1251,11 +1348,18 @@ export default function ManagerDashboardPage() {
   };
 
   const refreshByRole = async (type, profile = currentUser) => {
-    if (type === "owner") return loadOwnerData();
-    if (type === "manager") return loadManagerData();
+    if (type === "owner") {
+      await loadOwnerData();
+      return loadAiInsights();
+    }
+    if (type === "manager") {
+      await loadManagerData();
+      return loadAiInsights();
+    }
     if (type === "hr") return loadHrData();
     if (type === "client") return loadClientData(profile);
-    return loadEmployeeData();
+    await loadEmployeeData();
+    return loadAiInsights();
   };
 
   const bootstrap = async () => {
@@ -1274,6 +1378,21 @@ export default function ManagerDashboardPage() {
   useEffect(() => {
     bootstrap();
   }, []);
+
+  useEffect(() => {
+    if (!currentUser || !roleType) return undefined;
+
+    const refreshVisibleWorkspace = () => {
+      if (document.visibilityState !== "visible" || busyKey) return;
+      refreshByRole(roleType, currentUser).catch(() => {
+        // Keep the last successful dashboard state when a background refresh fails.
+      });
+    };
+
+    const intervalId = window.setInterval(refreshVisibleWorkspace, 60000);
+    return () => window.clearInterval(intervalId);
+  }, [busyKey, currentUser, roleType]);
+
   useEffect(() => {
     if (defaultScopedCompanyId === null) return;
 
@@ -2269,6 +2388,9 @@ export default function ManagerDashboardPage() {
               ? String(finalRow?.name || finalRow?.slug || "Role Details")
               : fallbackTitle;
 
+    const detailsError = finalRow ? "" : "Details not found.";
+    alertError(detailsError);
+
     setDetailsModal((prev) => ({
       ...prev,
       open: true,
@@ -2276,7 +2398,7 @@ export default function ManagerDashboardPage() {
       entityType,
       entity: finalRow,
       loading: false,
-      error: finalRow ? "" : "Details not found."
+      error: detailsError
     }));
   };
 
@@ -2301,17 +2423,25 @@ export default function ManagerDashboardPage() {
   };
 
   const submitCheckIn = async () => {
+    if (selectedAttendanceDate !== getLocalDateKey()) {
+      setErrorText("Attendance can only be marked for today.");
+      return;
+    }
     await runAction("checkin", async () => {
       await postData("/attendance/checkin/", {});
       await refreshByRole(roleType);
-    }, "✅ Checked in successfully!");
+    }, "Checked in successfully.");
   };
 
   const submitCheckOut = async () => {
+    if (selectedAttendanceDate !== getLocalDateKey()) {
+      setErrorText("Attendance can only be marked for today.");
+      return;
+    }
     await runAction("checkout", async () => {
       await postData("/attendance/checkout/", {});
       await refreshByRole(roleType);
-    }, "✅ Checked out successfully!");
+    }, "Checked out successfully.");
   };
 
   const submitLeaveApply = async (e) => {
@@ -2765,13 +2895,7 @@ export default function ManagerDashboardPage() {
   }, [employeeAttendanceRows]);
   useEffect(() => {
     const todayKey = getLocalDateKey();
-    const preferredDate = attendanceRecordByDate[todayKey]
-      ? todayKey
-      : employeeAttendanceRows[0]?.date
-        ? String(employeeAttendanceRows[0].date)
-        : todayKey;
-
-    setSelectedAttendanceDate((current) => (current && attendanceRecordByDate[current] ? current : preferredDate));
+    setSelectedAttendanceDate((current) => current || todayKey);
   }, [attendanceRecordByDate, employeeAttendanceRows]);
   useEffect(() => {
     const targetDate = selectedAttendanceDate || getLocalDateKey();
@@ -3118,6 +3242,14 @@ export default function ManagerDashboardPage() {
       { key: "on-hold", label: "On Hold", value: projects.filter((row) => String(row?.status || "").toUpperCase() === "ON_HOLD").length, color: "#7c3aed" }
     ];
   }, [managerProjectRowsWithProgress]);
+  const clientProjectStatusChart = useMemo(() => {
+    const projects = clientProjectsWithProgress;
+    return [
+      { key: "active", label: "Active", value: projects.filter((row) => String(row?.status || "").toUpperCase() === "ACTIVE").length, color: "#2563eb" },
+      { key: "completed", label: "Completed", value: projects.filter((row) => String(row?.status || "").toUpperCase() === "COMPLETED").length, color: "#16a34a" },
+      { key: "on-hold", label: "On Hold", value: projects.filter((row) => String(row?.status || "").toUpperCase() === "ON_HOLD").length, color: "#7c3aed" }
+    ];
+  }, [clientProjectsWithProgress]);
 
   const userColumns = [
     { key: "account_no", label: "User ID" },
@@ -3158,9 +3290,6 @@ export default function ManagerDashboardPage() {
         return roleName === undefined || roleName === null || roleName === "" ? "-" : String(roleName);
       }
     },
-    { key: "department", label: "Department" },
-    { key: "designation", label: "Designation" },
-    { key: "phone", label: "Phone" },
     {
       key: "role_level",
       label: "Level",
@@ -3858,6 +3987,7 @@ export default function ManagerDashboardPage() {
       const halfDayCount = employeeAttendanceRows.filter((row) => String(row?.status || "").toUpperCase() === "HALF_DAY").length;
       const onLeaveCount = employeeAttendanceRows.filter((row) => String(row?.status || "").toUpperCase().includes("LEAVE")).length;
       const todayKey = getLocalDateKey();
+      const canMarkSelectedAttendance = selectedAttendanceDate === todayKey;
       const selectedLabel = selectedAttendanceDate
         ? new Date(`${selectedAttendanceDate}T00:00:00`).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
         : "Selected date";
@@ -3958,7 +4088,7 @@ export default function ManagerDashboardPage() {
                   <p className="text-xs font-bold uppercase tracking-widest text-blue-800/80">Date</p>
                   <p className="mt-1 text-2xl font-extrabold text-blue-900" style={{ fontFamily: "'Georgia', serif" }}>{selectedLabel}</p>
                   <p className="mt-1 text-sm text-blue-800/80">
-                    {selectedAttendanceDate === todayKey ? "Today's date is highlighted for quick access." : "Click any date in the calendar to inspect attendance."}
+                    {selectedAttendanceDate === todayKey ? "You can mark attendance for today." : "This date is read-only; attendance can only be marked for today."}
                   </p>
                 </article>
                 <article className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
@@ -3977,12 +4107,13 @@ export default function ManagerDashboardPage() {
                 </article>
                 {!attendanceSelectedRecord && selectedAttendanceDate !== todayKey ? (
                   <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                    Is date par koi attendance record nahin mila.
+                    No attendance record was found for this date.
                   </p>
                 ) : null}
                 <div className="flex flex-wrap gap-2">
-                  <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" onClick={submitCheckIn} disabled={busyKey === "checkin"}>Mark Check-in</button>
-                  <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition hover:bg-blue-100" onClick={submitCheckOut} disabled={busyKey === "checkout"}>Mark Checkout</button>
+                  <button className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" onClick={submitCheckIn} disabled={busyKey === "checkin" || !canMarkSelectedAttendance}>Mark Check-in</button>
+                  <button className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 transition hover:bg-blue-100 disabled:opacity-60" onClick={submitCheckOut} disabled={busyKey === "checkout" || !canMarkSelectedAttendance}>Mark Checkout</button>
+                  {!canMarkSelectedAttendance ? <span className="text-xs font-semibold text-slate-500">Past/future dates are view-only.</span> : null}
                 </div>
                 <div className="pt-2">
                   <p className="mb-2 text-sm font-extrabold uppercase tracking-widest text-slate-500">Apply Leave</p>
@@ -4006,6 +4137,184 @@ export default function ManagerDashboardPage() {
     })()
   );
 
+  const aiSummaryMetrics = aiInsights.analyticsSummary?.metrics || {};
+  const aiSummaryText = toArray(aiInsights.analyticsSummary?.insights);
+  const aiManagerFocus = toArray(aiInsights.analyticsSummary?.manager_focus);
+  const aiTopTaskRisks = toArray(
+    aiInsights.delayPredictions?.task_predictions?.length
+      ? aiInsights.delayPredictions.task_predictions
+      : aiInsights.analyticsSummary?.top_task_risks
+  ).slice(0, 5);
+  const aiTopProjectRisks = toArray(aiInsights.delayPredictions?.project_predictions).slice(0, 4);
+  const aiEscalations = toArray(aiInsights.escalations?.escalations).slice(0, 5);
+  const aiPriorityOrder = toArray(aiInsights.taskPriorities?.recommended_order).slice(0, 5);
+  const aiAssignees = toArray(aiInsights.workload?.recommended_assignees).slice(0, 5);
+  const aiPredictionSummary = aiInsights.delayPredictions?.summary || {};
+  const deliveryRiskChart = [
+    { key: "critical", label: "Critical", value: Number(aiPredictionSummary.critical_tasks || 0), color: "#dc2626" },
+    { key: "high", label: "High", value: Number(aiPredictionSummary.high_risk_tasks || 0), color: "#d97706" },
+    {
+      key: "scored",
+      label: "Scored",
+      value: Math.max(
+        0,
+        Number(aiPredictionSummary.total_active_tasks_scored || 0)
+        - Number(aiPredictionSummary.critical_tasks || 0)
+        - Number(aiPredictionSummary.high_risk_tasks || 0)
+      ),
+      color: "#2563eb"
+    }
+  ];
+  const projectRiskChart = aiTopProjectRisks.slice(0, 5).map((project, index) => ({
+    key: project.project_id || project.name || index,
+    label: String(project.name || `Project ${index + 1}`).slice(0, 14),
+    value: Number(project.risk_score || 0),
+    color: ["#dc2626", "#d97706", "#2563eb", "#7c3aed", "#0891b2"][index % 5]
+  }));
+  const workloadCapacityChart = aiAssignees.map((person, index) => ({
+    key: person.company_user_id || person.name || index,
+    label: String(person.name || `User ${index + 1}`).slice(0, 14),
+    value: Number(person.capacity_score || 0),
+    color: ["#16a34a", "#0891b2", "#2563eb", "#7c3aed", "#d97706"][index % 5]
+  }));
+
+  const renderAiDashboardSummary = () => (
+    <section className="rounded-2xl overflow-hidden shadow-sm" style={{ border: "1px solid #dbeafe" }}>
+      <div className="px-5 py-3 flex flex-wrap items-center justify-between gap-3" style={{ background: "linear-gradient(90deg, #0d2760, #2563eb)" }}>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "#bfdbfe" }}>Smart Summary</p>
+          <p className="text-lg font-extrabold text-white" style={{ fontFamily: "'Georgia', serif" }}>What needs attention now</p>
+        </div>
+        <button type="button" className="rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/20" onClick={() => loadAiInsights()}>
+          Refresh AI
+        </button>
+      </div>
+      <div className="grid gap-3 bg-white p-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Tasks Scored" value={aiPredictionSummary.total_active_tasks_scored ?? aiSummaryMetrics.active_tasks ?? 0} accent="#2563eb" />
+        <StatCard label="Critical" value={aiPredictionSummary.critical_tasks ?? 0} accent="#dc2626" />
+        <StatCard label="High Risk" value={aiPredictionSummary.high_risk_tasks ?? 0} accent="#d97706" />
+        <StatCard label="Escalations" value={aiInsights.escalations?.total ?? aiEscalations.length} accent="#7c3aed" />
+      </div>
+      <div className="grid gap-3 bg-white px-4 pb-4 lg:grid-cols-2">
+        {(aiSummaryText.length ? aiSummaryText.slice(0, 3) : ["No major risk signals yet. Add due dates, progress, priorities, and attendance data for richer insights."]).map((item, index) => (
+          <p key={`${item}-${index}`} className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900">{item}</p>
+        ))}
+        {aiManagerFocus.slice(0, 3).map((item, index) => (
+          <p key={`${item}-${index}`} className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{item}</p>
+        ))}
+      </div>
+      <div className="bg-white px-4 pb-4">
+        <AnalyticsBarChart title="Delivery Risk" subtitle="Critical and high-risk task mix" bars={deliveryRiskChart} />
+      </div>
+    </section>
+  );
+
+  const renderAiTaskPanel = ({ includeEscalations = true } = {}) => (
+    <div className="grid gap-4 xl:grid-cols-2">
+      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+        <SectionTitle title="Smart Task Priority" />
+        <div className="space-y-3">
+          {aiPriorityOrder.length === 0 ? (
+            <p className="text-sm text-slate-500">No active task priorities available.</p>
+          ) : aiPriorityOrder.map((task, index) => (
+            <div key={task.task_id || `${task.title}-${index}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <div>
+                <p className="font-semibold text-slate-900">{index + 1}. {task.title || "Task"}</p>
+                <p className="text-xs text-slate-500">Due: {task.due_date || "-"} | Assignee: {task.assigned_to_name || "-"}</p>
+              </div>
+              <span className="text-sm font-extrabold text-blue-700">{task.risk_score ?? 0}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+        <SectionTitle title="Delay Prediction" />
+        <AnalyticsBarChart title="Risk Distribution" subtitle="Current scored task risk" bars={deliveryRiskChart} />
+        <div className="space-y-3">
+          {aiTopTaskRisks.length === 0 ? (
+            <p className="text-sm text-slate-500">No risky active tasks found.</p>
+          ) : aiTopTaskRisks.map((task) => (
+            <article key={task.task_id || task.title} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="font-extrabold text-slate-900">{task.title || "Task"}</p>
+                <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-bold uppercase text-rose-700">{task.risk_level || "risk"} {task.risk_score ?? 0}</span>
+              </div>
+              <p className="text-sm text-slate-600">Delay probability: {Math.round(Number(task.delay_probability || 0) * 100)}%</p>
+              <p className="mt-1 text-xs text-slate-500">{toArray(task.reasons).slice(0, 2).join("; ") || "No reason available"}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {includeEscalations ? (
+        <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm xl:col-span-2">
+          <SectionTitle title="Escalation Suggestions" />
+          <div className="grid gap-3 md:grid-cols-2">
+            {aiEscalations.length === 0 ? (
+              <p className="text-sm text-slate-500">No escalation suggestions right now.</p>
+            ) : aiEscalations.map((item) => (
+              <article key={`${item.type}-${item.task_id || item.project_id || item.title || item.name}`} className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-amber-700">{item.severity || "risk"}</p>
+                <p className="mt-1 text-sm font-bold text-slate-900">{item.summary || item.title || item.name}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+
+  const renderAiProjectPanel = () => (
+    <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+      <SectionTitle title="Project Health" />
+      {projectRiskChart.length ? (
+        <div className="mb-4">
+          <AnalyticsBarChart title="Deadline Risk" subtitle="Top project risk scores" bars={projectRiskChart} />
+        </div>
+      ) : null}
+      <div className="grid gap-3 md:grid-cols-2">
+        {aiTopProjectRisks.length === 0 ? (
+          <p className="text-sm text-slate-500">No project risk signals detected.</p>
+        ) : aiTopProjectRisks.map((project) => (
+          <article key={project.project_id || project.name} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="font-extrabold text-slate-900">{project.name || "Project"}</p>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold uppercase text-blue-700">{project.risk_level || "low"}</span>
+            </div>
+            <p className="text-sm text-slate-600">Miss deadline probability: {Math.round(Number(project.miss_deadline_probability || 0) * 100)}%</p>
+            <p className="mt-1 text-xs text-slate-500">{toArray(project.reasons).slice(0, 2).join("; ") || "No reason available"}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+
+  const renderAiWorkloadPanel = () => (
+    <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+      <SectionTitle title="Workload Balancing" />
+      {workloadCapacityChart.length ? (
+        <div className="mb-4">
+          <AnalyticsBarChart title="Capacity Scores" subtitle="Best assignees for new work" bars={workloadCapacityChart} />
+        </div>
+      ) : null}
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {aiAssignees.length === 0 ? (
+          <p className="text-sm text-slate-500">No assignee recommendations available.</p>
+        ) : aiAssignees.map((person) => (
+          <article key={person.company_user_id || person.name} className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <p className="font-bold text-slate-900">{person.name || "Employee"}</p>
+              <span className="text-sm font-extrabold text-emerald-700">{person.capacity_score ?? 0}</span>
+            </div>
+            <p className="text-xs text-slate-600">Active tasks: {person.active_tasks ?? 0}</p>
+            <p className="mt-1 text-xs font-semibold text-emerald-800">{person.recommendation || "Recommendation pending"}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+
   return (
     <div className={`dashboard-shell${isOwnerPortal ? " owner-theme" : ""}`}>
       <DashboardThemeStyles />
@@ -4016,9 +4325,7 @@ export default function ManagerDashboardPage() {
         <div style={{ position: "absolute", bottom: -15, left: 300, width: 70, height: 70, borderRadius: "50%", background: "rgba(22,163,74,0.09)", pointerEvents: "none" }} />
         <div className="relative flex flex-wrap items-center justify-between gap-3 px-6 py-4 md:px-6">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-white/30" style={{ boxShadow: "0 0 0 4px rgba(30,77,183,0.35)" }}>
-              <img src={logo} alt="WorkZen" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            </div>
+            <BrandMark size={42} variant="dark" />
             <div>
               <h1 className="text-2xl font-extrabold tracking-wide" style={{ fontFamily: "'Georgia', serif" }}>{platformName}</h1>
               <div className="flex items-center gap-1.5 mt-0.5">
@@ -4118,10 +4425,10 @@ export default function ManagerDashboardPage() {
               </div>
             );
           })()}
-          {errorText ? <p className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{errorText}</p> : null}
           {activeMenu === "owner-dashboard" ? (
             <>
               <SectionTitle title="Analytics" />
+              {renderAiDashboardSummary()}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard label="Employees" value={ownerOverview.total_employees} accent="#39d39b" />
                 <StatCard label="Projects" value={ownerOverview.total_projects} accent="#4b9ef5" />
@@ -4238,6 +4545,7 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "owner-users" ? (
             <>
+              {renderAiWorkloadPanel()}
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <SectionTitle title="User List" />
@@ -4257,6 +4565,7 @@ export default function ManagerDashboardPage() {
 
           {activeMenu === "manager-users" ? (
             <>
+              {renderAiWorkloadPanel()}
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <SectionTitle title="User List" />
@@ -4281,6 +4590,7 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={ownerProjectMetrics.completed_projects} />
                 <StatCard label="On Hold" value={ownerProjectMetrics.on_hold_projects} />
               </section>
+              {renderAiProjectPanel()}
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <SectionTitle title="Projects" />
@@ -4337,6 +4647,7 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={ownerTaskMetrics.completed_tasks} />
                 <StatCard label="Overdue" value={ownerTaskMetrics.overdue_tasks} />
               </section>
+              {renderAiTaskPanel()}
               <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe" }}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <SectionTitle title="Tasks by Project" />
@@ -4494,7 +4805,6 @@ export default function ManagerDashboardPage() {
             maxWidth="max-w-5xl"
           >
             {detailsModal.loading ? <p className="text-sm text-slate-500">Loading details...</p> : null}
-            {!detailsModal.loading && detailsModal.error ? <p className="text-sm text-rose-600">{detailsModal.error}</p> : null}
             {!detailsModal.loading && !detailsModal.error ? (
               <div className="grid gap-3 md:grid-cols-2">
                 {detailsFieldEntries.map(([fieldKey, fieldValue]) => (
@@ -4584,6 +4894,7 @@ export default function ManagerDashboardPage() {
           {activeMenu === "manager-dashboard" ? (
             <>
               {/* Scorecard strip */}
+              {renderAiDashboardSummary()}
               <div className="rounded-2xl overflow-hidden shadow-sm" style={{ border: "1px solid #dbeafe" }}>
                 <div className="px-5 py-2.5 flex items-center justify-between" style={{ background: "linear-gradient(90deg, #0d2760, #1e3a8a)" }}>
                   <span className="text-sm font-extrabold text-white" style={{ fontFamily: "'Georgia', serif" }}>Manager Overview</span>
@@ -4674,6 +4985,7 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={managerProjectMetrics.completed_projects} />
                 <StatCard label="On Hold" value={managerProjectMetrics.on_hold_projects} />
               </section>
+              {renderAiProjectPanel()}
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <SectionTitle title="Projects" />
@@ -4730,6 +5042,7 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={managerTaskMetrics.completed_tasks} />
                 <StatCard label="Overdue" value={managerTaskMetrics.overdue_tasks} />
               </section>
+              {renderAiTaskPanel()}
               <section className="rounded-2xl bg-white p-5 shadow-sm" style={{ border: "1px solid #dbeafe" }}>
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <SectionTitle title="Tasks by Project" />
@@ -4820,6 +5133,8 @@ export default function ManagerDashboardPage() {
                   ))}
                 </div>
               </div>
+
+              {renderAiTaskPanel({ includeEscalations: false })}
 
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <SectionTitle title="My Projects" />
@@ -5061,6 +5376,12 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Completed" value={clientProjectsWithProgress.filter((p) => String(p?.status || "").toUpperCase() === "COMPLETED").length} />
                 <StatCard label="On Hold" value={clientProjectsWithProgress.filter((p) => String(p?.status || "").toUpperCase() === "ON_HOLD").length} />
               </section>
+              <AnalyticsDonutCard
+                title="Project Progress Mix"
+                subtitle="Client-visible status summary"
+                total={clientProjectsWithProgress.length}
+                segments={clientProjectStatusChart}
+              />
               <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
                 <SectionTitle title="Projects" />
                 {clientProjectsWithProgress.length === 0 ? (
@@ -5102,5 +5423,3 @@ export default function ManagerDashboardPage() {
     </div>
   );
 }
-
-

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
+import NotificationCenter from "./components/NotificationCenter";
 
 const ManagerDashboardPage = lazy(() => import("./pages/ManagerDashboardPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -8,6 +9,9 @@ const RegisterPage = lazy(() => import("./pages/RegisterPage"));
 const SetPasswordPage = lazy(() => import("./pages/SetPasswordPage"));
 const TaskDetailsPage = lazy(() => import("./pages/TaskDetailsPage"));
 const ProjectDetailsPage = lazy(() => import("./pages/ProjectDetailsPage"));
+const ProjectBoardPage = lazy(() => import("./pages/ProjectBoardPage"));
+const WorkflowPage = lazy(() => import("./pages/WorkflowPage"));
+const ProjectTimelinePage = lazy(() => import("./pages/ProjectTimelinePage"));
 const UserDetailsPage = lazy(() => import("./pages/UserDetailsPage"));
 const HomePage = lazy(() => import("./pages/HomePage"));
 
@@ -61,6 +65,7 @@ export default function App() {
   return (
     <AuthProvider>
       <GlobalThemeToggle />
+      <NotificationCenter />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public homepage */}
@@ -75,6 +80,9 @@ export default function App() {
           <Route path="/app" element={<ProtectedRoute><ManagerDashboardPage /></ProtectedRoute>} />
           <Route path="/task/:taskId" element={<ProtectedRoute><TaskDetailsPage /></ProtectedRoute>} />
           <Route path="/project/:projectId" element={<ProtectedRoute><ProjectDetailsPage /></ProtectedRoute>} />
+          <Route path="/project/:projectId/board" element={<ProtectedRoute><ProjectBoardPage /></ProtectedRoute>} />
+          <Route path="/project/:projectId/timeline" element={<ProtectedRoute><ProjectTimelinePage /></ProtectedRoute>} />
+          <Route path="/workflows" element={<ProtectedRoute><WorkflowPage /></ProtectedRoute>} />
           <Route path="/user/:userId" element={<ProtectedRoute><UserDetailsPage /></ProtectedRoute>} />
 
           {/* Fallback */}

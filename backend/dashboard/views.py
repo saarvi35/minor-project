@@ -1,6 +1,7 @@
 from django.db.models import Q
 from django.utils import timezone
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -12,6 +13,7 @@ from tasks.models import Task
 
 from .serializers import (
     ClientProjectProgressSerializer,
+    ContactMessageSerializer,
     LeaveSerializer,
     OverviewSerializer,
     ProjectSerializer,
@@ -34,6 +36,23 @@ def is_manager_company_user(company_user):
     role_name = str(getattr(company_user.role, "name", "")).lower()
     role_slug = str(getattr(company_user.role, "slug", "")).lower()
     return "manager" in f"{role_name} {role_slug}".strip()
+
+
+class ContactMessageAPI(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        serializer = ContactMessageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            {
+                "message": "Contact message saved successfully.",
+                "contact": serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 

@@ -1,0 +1,94 @@
+7. M365 Overage — Metric Definitions & Calculation Rules
+Source Tables : [Entitlements, M365_Usage]
+Rules for how each M365 Overage metric is defined, computed, and interpreted FOR ENTITLEMENT LEVEL INFO
+
+7.1 Entitled Capacity FEGB:
+Evaluate at the [Account Name + Billing Period End Date] grain using a fixed LOD. Apply the following conditions in strict priority order:
+Priority 1 — Customer Hosted:
+If any non-DPC entitlement (i.e. Entitlement Name does NOT start with 'RS-GB-MS-') contains the word "CUSTOMER" (case-insensitive) in the FEATURE_MARKETING_NAME field → return "Customer Hosted".
+Priority 2 — Unlimited GB (Capacity-based):
+If any non-DPC AND non-SaaS entitlement has Entitled Capacity IN ('Unlimited', 'Unlimited GB') → return "Unlimited GB".
+Priority 3 — Unlimited GB (Pure USL only):
+If USL Entitled User Licenses > 0 AND the account has no FEGB entitlement rows at all (i.e. no records exist in the entitlements table for FEGB for that account) → return "Unlimited GB".
+Default — Numeric Capacity:
+In all other cases → return SUM(Entitled Capacity FEGB at entitlement level) as a string.
+
+7.2 Entitled Capacity DPC:
+Evaluate at the [Account Name + Billing Period End Date] grain using a fixed LOD.
+Only consider rows where a matching DPC entitlement exists — i.e., look up the ENTITLEMENTS table and check that ENTITLEMENT_NAME starts with 'RS-GB-MS-'.
+Once filtered:
+If ENTITLED_CAPACITY IN ('Unlimited', 'Unlimited GB') → return "Unlimited GB"
+Otherwise → return SUM(ENTITLED_CAPACITY) as a string (skip unlimited rows in the sum)
+
+7.3 (M365 Entitled User Licenses):
+Evaluate using a fixed LOD at [Polaris Account Name + Report Month + Account Name + Entitlement ID + Entitlement Name + Entitlement Start Date + Entitlement End Date] grain.
+Formula: INT(MAX(ENTITLED_LICENSED_M365)) per entitlement row.
+
+7.4 (USL Entitled User Licenses):
+Evaluate using a fixed LOD at [Polaris Account Name + Report Month + Account Name + Entitlement ID + Entitlement Name + Entitlement Start Date + Entitlement End Date] grain.
+Formula: INT(MAX(USL_ENTITLED_USERS)) per entitlement row.
+
+7.5 (Consumed Licenses):
+Evaluate at [Polaris Account Name + Report Month + Account Name] grain using a fixed LOD.
+If the M365 tenant is NOT authenticated → return 'CTA: Authenticate'.
+Otherwise → return MAX(Consumed Licenses Source) for that account/month, defaulting to 0 if null.
+Note: At account level, always take MAX of consumed licenses — do NOT sum across entitlements 
+
+7.6 (Overused Licenses):
+If the M365 tenant is NOT authenticated (evaluated at MIN grain) → return 'CTA: Authenticate'.
+Otherwise → return MAX(0, Consumed Licenses − Total Entitled Licenses) as a string.
+
+7.7 (Total FEGB Estimate):
+  IF Exchange_FEGB IS NULL OR OneDrive_FEGB IS NULL OR SharePoint_FEGB IS NULL
+  THEN 'No Active M365 Org'
+  ELSE STR(ROUND(Exchange_FEGB + OneDrive_FEGB + SharePoint_FEGB, 2))
+  END
+  Sum of per-workload customer FEGB estimates (Exchange + OneDrive + SharePoint). Each is MAX(snappable GB) filtered by snappable type. Returns "No
+  Active M365 Org" if any workload has no data.
+
+7.8 (Overused FEGB Estimate):
+If Entitled Capacity FEGB = "Unlimited GB" → return 0.
+Otherwise → return MAX(Total FEGB Estimate − Entitled Capacity Numeric, 0).
+
+7.9 (Total Consumed DPC GB):
+Evaluate at [Polaris Account Name + Report Month + Account Name] grain using a fixed LOD.
+Formula: SUM(MAX(Live Data Size GB) per account/month).
+
+7.10 
+
+7.11 (Overused DPC GB):
+If Entitled Capacity = "Unlimited GB" OR "Customer Hosted" → return 0.
+Otherwise → return MAX(Total Consumed DPC GB − Entitled Capacity Numeric, 0).
+
+7.12 (Eligible for DPC Credit):
+If Entitled Capacity FEGB = "Unlimited GB" → return "No".
+If FEGB entitled capacity (numeric) > 0 → return "Yes".
+Otherwise → return "No".
+
+7.13 (DPC Validation Criteria Met):
+If ABS(%MoM Consumed DPC GB) <= 0.03 → return 'Yes'.
+Otherwise → return 'No'.
+
+7.14 (DPC Credit CTA):
+Apply the following conditions in strict priority order:
+Condition 1 — Not eligible: If Eligible for DPC Credit = "No" → return '' (blank).
+Condition 2 — Unlimited or Customer Hosted: If Entitled Capacity = "Unlimited GB" OR "Customer Hosted" → return "No overage".
+Condition 3 — No DPC overage: If Total Consumed DPC GB <= Entitled Capacity Numeric → return "No overage".
+Condition 4 — Script needed: If Total Consumed DPC GB <= Total FEGB Estimate → return "CTA: Run Script".
+Condition 5 — Include in Revenue/Expansion: All remaining cases → return "CTA: Include in R/E".
+
+7.15 (Potential DPC Credit Estimate):
+Apply the following conditions in strict priority order:
+Condition 1 — Not eligible: If Eligible for DPC Credit = "No" → return '' (blank).
+Condition 2 — Unlimited or Customer Hosted: If Entitled Capacity = "Unlimited GB" OR "Customer Hosted" → return "No overage".
+Condition 3 — No DPC overage: If Total Consumed DPC GB <= Entitled Capacity Numeric → return "No overage".
+Condition 4 — Credit estimate calculable: If Total Consumed DPC GB > Entitled Capacity Numeric AND Total Consumed DPC GB > Total FEGB Estimate → Credit-eligible GB = ROUND(Total Consumed DPC GB − MAX(Total FEGB Estimate, Entitled Capacity Numeric), 2).
+Condition 5 — Script needed: All remaining cases → return "CTA: Run Script".
+
+7.16 (Potential $ACV — User License Overage):
+If the M365 tenant is NOT authenticated → return 'CTA: Authenticate'.
+Otherwise → return ROUND(Overused Licenses × $1 × 12 months × 0.40, 2) as a string.
+
+7.17 (Potential $ACV — FEGB Estimate Overage):
+Formula: Overused FEGB Estimate (GB) × $0.05 × 12 months × 0.50.
+Rate basis: $0.05 per GB per month at 50% net after 50% discount.

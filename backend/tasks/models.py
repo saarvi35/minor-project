@@ -85,3 +85,63 @@ class Task(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class TaskComment(models.Model):
+    """A tenant-scoped discussion entry for a task."""
+
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="comments")
+    author = models.ForeignKey(CompanyUser, on_delete=models.CASCADE, related_name="task_comments")
+    body = models.TextField(max_length=2000)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+    def __str__(self):
+        return f"Comment on task #{self.task_id}"
+
+
+class TaskActivity(models.Model):
+    """An immutable, user-visible audit trail for collaboration events."""
+
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="activities")
+    actor = models.ForeignKey(
+        CompanyUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="task_activities",
+    )
+    event_type = models.CharField(max_length=50)
+    summary = models.CharField(max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return self.summary
+
+
+class TaskNotification(models.Model):
+    """An in-app alert that always belongs to one member of one tenant."""
+
+    recipient = models.ForeignKey(
+        CompanyUser,
+        on_delete=models.CASCADE,
+        related_name="task_notifications",
+    )
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="notifications")
+    event_type = models.CharField(max_length=50)
+    message = models.CharField(max_length=500)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["recipient", "is_read", "created_at"])]
+
+    def __str__(self):
+        return self.message
