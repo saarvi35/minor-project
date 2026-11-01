@@ -24,6 +24,7 @@ spec:
           command: ["sh", "-c", "python manage.py migrate --noinput"]
           envFrom:
             - configMapRef: { name: workzen-config }
+            - configMapRef: { name: workzen-public, optional: true }
             - secretRef: { name: workzen-secrets }
       containers:
         - name: backend
@@ -34,6 +35,7 @@ spec:
             - containerPort: 8000
           envFrom:
             - configMapRef: { name: workzen-config }
+            - configMapRef: { name: workzen-public, optional: true }
             - secretRef: { name: workzen-secrets }
           readinessProbe:
             httpGet: { path: /api/health/, port: 8000 }
@@ -78,6 +80,7 @@ spec:
           command: ["celery", "-A", "config", "worker", "--loglevel=info"]
           envFrom:
             - configMapRef: { name: workzen-config }
+            - configMapRef: { name: workzen-public, optional: true }
             - secretRef: { name: workzen-secrets }
 ---
 apiVersion: apps/v1
@@ -103,6 +106,7 @@ spec:
           command: ["celery", "-A", "config", "beat", "--loglevel=info"]
           envFrom:
             - configMapRef: { name: workzen-config }
+            - configMapRef: { name: workzen-public, optional: true }
             - secretRef: { name: workzen-secrets }
 ---
 apiVersion: apps/v1
@@ -144,3 +148,16 @@ spec:
     - port: 80
       targetPort: 80
       nodePort: 30080
+---
+# The frontend image's nginx config proxies /api/ to the host name "backend".
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: workzen
+spec:
+  selector:
+    app: workzen-backend
+  ports:
+    - port: 8000
+      targetPort: 8000
