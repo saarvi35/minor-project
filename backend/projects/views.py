@@ -19,7 +19,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return Project.objects.none()
 
         permissions_map = get_permission_dict(company_user.role)
-        base_queryset = Project.objects.filter(company=company_user.company)
+        base_queryset = Project.objects.filter(company=company_user.company, is_active=True).select_related(
+            "company", "manager__user", "manager__role", "client__user", "client__role"
+        )
 
         if permissions_map.get("can_manage_company") or permissions_map.get("can_view_all_tasks"):
             return base_queryset
@@ -46,18 +48,25 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serializer.save(company=company_user.company)
 
     def perform_update(self, serializer):
-        self._require_project_management()
+        company_user = self._require_project_management()
+        if not get_permission_dict(company_user.role).get("can_manage_company") and serializer.instance.manager_id != company_user.id:
+            raise PermissionDenied("You can only update projects you manage.")
         serializer.save()
 
     def perform_destroy(self, instance):
-        self._require_project_management()
-        instance.delete()
+        company_user = self._require_project_management()
+        if not get_permission_dict(company_user.role).get("can_manage_company") and instance.manager_id != company_user.id:
+            raise PermissionDenied("You can only delete projects you manage.")
+        instance.is_active = False
+        instance.save(update_fields=["is_active"])
 
     #  Assign Client to Project
     @action(detail=True, methods=["patch"])
     def assign_client(self, request, pk=None):
-        self._require_project_management()
+        company_user = self._require_project_management()
         project = self.get_object()
+        if not get_permission_dict(company_user.role).get("can_manage_company") and project.manager_id != company_user.id:
+            raise PermissionDenied("You can only manage projects you manage.")
 
         client_id = request.data.get("client")
 
@@ -70,6 +79,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
         client = CompanyUser.objects.filter(id=client_id, company=project.company).first()
         if not client:
             return Response({"error": "Client must belong to this company"}, status=status.HTTP_400_BAD_REQUEST)
+        if not client.role.can_view_project_progress:
+            return Response({"error": "Selected member does not have client project access"}, status=status.HTTP_400_BAD_REQUEST)
 
         project.client = client
         project.save()
@@ -79,8 +90,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
     # Soft Delete 
     @action(detail=True, methods=["patch"])
     def deactivate(self, request, pk=None):
-        self._require_project_management()
+        company_user = self._require_project_management()
         project = self.get_object()
+        if not get_permission_dict(company_user.role).get("can_manage_company") and project.manager_id != company_user.id:
+            raise PermissionDenied("You can only manage projects you manage.")
         project.is_active = False
         project.save()
 

@@ -82,3 +82,11 @@ class ProjectTenantAccessTests(APITestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("project", response.data)
+
+    def test_project_delete_deactivates_without_removing_tasks(self):
+        self.client.force_authenticate(self.manager_user)
+        response = self.client.delete(f"/api/projects/{self.visible_project.id}/")
+        self.assertEqual(response.status_code, 204)
+        self.visible_project.refresh_from_db()
+        self.assertFalse(self.visible_project.is_active)
+        self.assertTrue(Task.objects.filter(project=self.visible_project).exists())

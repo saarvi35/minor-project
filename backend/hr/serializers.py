@@ -57,6 +57,25 @@ class EmployeeProfileSerializer(serializers.ModelSerializer):
         ]
 
 
+class SelfEmployeeProfileSerializer(serializers.ModelSerializer):
+    """Employees may update contact details only; HR owns employment data."""
+
+    department = DepartmentSerializer(read_only=True)
+
+    class Meta:
+        model = EmployeeProfile
+        fields = [
+            "id",
+            "department",
+            "designation",
+            "date_joined",
+            "salary",
+            "phone",
+            "address",
+        ]
+        read_only_fields = ["id", "department", "designation", "date_joined", "salary"]
+
+
 class AttendanceSerializer(serializers.ModelSerializer):
     company_user_id = serializers.IntegerField(source="company_user.id", read_only=True)
     employee_name = serializers.SerializerMethodField()
@@ -123,3 +142,7 @@ class PerformanceReviewSerializer(serializers.ModelSerializer):
             "feedback",
             "review_date",
         ]
+
+
+class LeaveStatusUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=["APPROVED", "REJECTED"])

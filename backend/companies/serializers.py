@@ -1,8 +1,10 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from django.db import transaction
 from rest_framework import serializers
 
 from .models import CompanyUser, Role, Company
+from .permissions import ensure_manageable_member, require_permission
 
 User = get_user_model()
 
@@ -11,6 +13,7 @@ class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = "__all__"
+        read_only_fields = ["owner", "last_user_number"]
 
 
 class RegistrationSerializer(serializers.Serializer):
@@ -18,13 +21,22 @@ class RegistrationSerializer(serializers.Serializer):
 
     owner_name = serializers.CharField(max_length=150)
     owner_email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, min_length=6)
+    password = serializers.CharField(write_only=True, min_length=8)
 
     def validate_owner_email(self, value):
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError(
                 "User with this email already exists."
             )
+        return value
+
+    def validate_password(self, value):
+        user = User(
+            username=self.initial_data.get("owner_email", ""),
+            email=self.initial_data.get("owner_email", ""),
+            first_name=self.initial_data.get("owner_name", ""),
+        )
+        validate_password(value, user)
         return value
 
     @transaction.atomic
@@ -57,6 +69,10 @@ class RegistrationSerializer(serializers.Serializer):
             can_view_assigned_tasks=True,
             can_update_task_status=True,
             can_view_project_progress=True,
+            can_manage_hr=True,
+            can_approve_leave=True,
+            can_view_attendance=True,
+            can_manage_payroll=True,
         )
 
         CompanyUser.objects.create(
@@ -78,19 +94,30 @@ class CreateUserSerializer(serializers.Serializer):
     role_id = serializers.IntegerField()
 
     def validate(self, data):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication is required.")
+        actor = require_permission(request, "can_manage_users")
         try:
             company = Company.objects.get(id=data["company_id"])
         except Company.DoesNotExist:
             raise serializers.ValidationError("Company not found.")
 
         try:
-            Role.objects.get(id=data["role_id"], company=company)
+            role = Role.objects.get(id=data["role_id"], company=company)
         except Role.DoesNotExist:
             raise serializers.ValidationError("Invalid role for this company.")
+
+        if company.id != actor.company_id:
+            raise serializers.ValidationError("You can only invite users into your own company.")
+        if role.level >= actor.role.level:
+            raise serializers.ValidationError("You cannot assign an equal or higher role.")
 
         existing_user = User.objects.filter(email=data["email"]).first()
 
         if existing_user:
+            if CompanyUser.objects.filter(user=existing_user).exclude(company=company).exists():
+                raise serializers.ValidationError("This email already belongs to another company tenant.")
             if CompanyUser.objects.filter(
                 user=existing_user,
                 company=company
@@ -104,7 +131,7 @@ class CreateUserSerializer(serializers.Serializer):
     def create(self, validated_data):
         company = Company.objects.get(id=validated_data["company_id"])
 
-        user, _created = User.objects.get_or_create(
+        user, created = User.objects.get_or_create(
             email=validated_data["email"],
             defaults={
                 "username": validated_data["email"],
@@ -112,6 +139,9 @@ class CreateUserSerializer(serializers.Serializer):
                 "is_active": False
             }
         )
+        if created:
+            user.set_unusable_password()
+            user.save(update_fields=["password"])
 
         company_user = CompanyUser.objects.create(
             user=user,
@@ -130,6 +160,7 @@ class RoleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Role
         fields = "__all__"
+        read_only_fields = ["company", "slug"]
 
 
 class CurrentUserSerializer(serializers.ModelSerializer):
@@ -191,4 +222,5 @@ class SetPasswordSerializer(serializers.Serializer):
     def validate(self, data):
         if data["password"] != data["confirm_password"]:
             raise serializers.ValidationError("Passwords do not match")
+        validate_password(data["password"])
         return data

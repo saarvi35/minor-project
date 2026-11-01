@@ -14,6 +14,8 @@ docker compose -f compose.production.yaml --profile app up --build -d
 
 This starts frontend, backend, Redis, Celery worker, and Celery Beat together. The worker executes task automations and the hourly SLA watchdog.
 
+The backend image also includes Excel onboarding support. Owners can download the template from **Data Import**, upload a completed `.xlsx` workbook, validate it, and explicitly confirm the import. A publicly viewable Google Sheet with the same three tabs can be imported through its share link.
+
 The backend service applies pending Django migrations and collects static files before Gunicorn starts. Run only one backend replica for this Compose configuration; use a dedicated migration job when scaling on Kubernetes.
 
 ## Readiness check

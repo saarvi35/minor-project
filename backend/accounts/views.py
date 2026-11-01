@@ -7,11 +7,16 @@ from companies.models import CompanyUser
 from hr.models import Attendance, LeaveRequest
 from django.utils import timezone 
 from datetime import datetime
-from rest_framework.permissions import IsAuthenticated 
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.throttling import ScopedRateThrottle
 
 
 # login view
 class LoginView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         try:
@@ -25,6 +30,9 @@ class LoginView(APIView):
 
 class GoogleLoginView(APIView):
     authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "auth"
 
     def post(self, request):
         serializer = GoogleLoginSerializer(data=request.data)
@@ -54,12 +62,12 @@ class LogoutView(APIView):
         )
 
 class MarkAttendanceAPI(APIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
 
         try:
             company_user = CompanyUser.objects.select_related("role").get(user=request.user)
-            permission_classes = [IsAuthenticated]
         except CompanyUser.DoesNotExist:
             return Response({"error": "Not linked to company"}, status=403)
 
@@ -87,12 +95,12 @@ class MarkAttendanceAPI(APIView):
         }, status=201)
 
 class CheckoutAttendanceAPI(APIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
 
         try:
             company_user = CompanyUser.objects.get(user=request.user)
-            permission_classes = [IsAuthenticated]
         except CompanyUser.DoesNotExist:
             return Response({"error": "Not linked to company"}, status=403)
 
@@ -125,12 +133,12 @@ class CheckoutAttendanceAPI(APIView):
 
 
 class ApplyLeaveAPI(APIView):
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
 
         try:
             company_user = CompanyUser.objects.get(user=request.user)
-            permission_classes = [IsAuthenticated]
         except CompanyUser.DoesNotExist:
             return Response({"error": "Not linked to company"}, status=403)
 

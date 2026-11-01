@@ -2,6 +2,8 @@ from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
 import uuid
+from datetime import timedelta
+from django.utils import timezone
 
 
 class Company(models.Model):
@@ -68,6 +70,11 @@ class Role(models.Model):
     def __str__(self):
         return f"{self.name} ({self.company.name})"
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["company", "name"], name="unique_role_name_per_company"),
+        ]
+
 
 class CompanyUser(models.Model):
 
@@ -98,6 +105,8 @@ class CompanyUser(models.Model):
     )
 
     invite_token = models.UUIDField(default=uuid.uuid4, unique=True, null=True, blank=True)
+    invited_at = models.DateTimeField(null=True, blank=True)
+    invite_expires_at = models.DateTimeField(null=True, blank=True)
     account_no = models.IntegerField(null=True, blank=True)
 
     def save(self, *args, **kwargs):
@@ -108,6 +117,15 @@ class CompanyUser(models.Model):
             self.company.save()
         super().save(*args, **kwargs)
 
+    def issue_invitation(self, expires_in_days=7):
+        """Create a single-use, time-limited invitation without deleting history."""
+        now = timezone.now()
+        self.invite_token = uuid.uuid4()
+        self.invited_at = now
+        self.invite_expires_at = now + timedelta(days=expires_in_days)
+        self.status = "INVITED"
+        self.save(update_fields=["invite_token", "invited_at", "invite_expires_at", "status"])
+
     def __str__(self):
         if self.email:
             return self.email
@@ -116,4 +134,13 @@ class CompanyUser(models.Model):
         if self.user:
             return self.user.email
         return "CompanyUser"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["company", "email"], name="unique_member_email_per_company"),
+        ]
+        indexes = [
+            models.Index(fields=["company", "status"], name="member_company_status_idx"),
+            models.Index(fields=["company", "role", "status"], name="member_company_role_idx"),
+        ]
 

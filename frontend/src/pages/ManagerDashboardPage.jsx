@@ -2,54 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import DataTable from "../components/DataTable";
 import BrandMark from "../components/BrandMark";
 import StatusPill from "../components/StatusPill";
-import { deleteData, getData, patchData, postData, putData } from "../lib/api";
+import api, { deleteData, getData, patchData, postData, putData } from "../lib/api";
 import { useAuth } from "../lib/auth";
-
-const MENUS = {
-  owner: [
-    { id: "owner-dashboard", label: "Analytics" },
-    { id: "owner-roles", label: "Roles" },
-    { id: "owner-users", label: "Users" },
-    { id: "owner-projects", label: "Projects" },
-    { id: "owner-tasks", label: "Tasks" },
-    { id: "owner-company", label: "Settings" }
-  ],
-  manager: [
-    { id: "manager-dashboard", label: "Dashboard" },
-    { id: "manager-users", label: "Users" },
-    { id: "manager-roles", label: "Roles" },
-    { id: "manager-projects", label: "Projects" },
-    { id: "manager-tasks", label: "Tasks" },
-    { id: "manager-attendance", label: "Attendance & Leave" }
-  ],
-  employee: [
-    { id: "employee-dashboard", label: "Dashboard" },
-    { id: "employee-attendance", label: "Attendance & Leave" }
-  ],
-  hr: [
-    { id: "hr-dashboard", label: "Dashboard" },
-    { id: "hr-roles", label: "Roles" },
-    { id: "hr-attendance", label: "Attendance, Leave, Review" }
-  ],
-  client: [{ id: "client-dashboard", label: "Dashboard" }]
-};
-
-const ROLE_PERMISSION_FIELDS = [
-  "can_manage_company",
-  "can_manage_roles",
-  "can_manage_users",
-  "can_create_project",
-  "can_assign_task",
-  "can_view_all_tasks",
-  "can_view_team_tasks",
-  "can_view_assigned_tasks",
-  "can_update_task_status",
-  "can_view_project_progress",
-  "can_manage_hr",
-  "can_approve_leave",
-  "can_view_attendance",
-  "can_manage_payroll"
-];
+import NotificationCenter from "../components/NotificationCenter";
+import { canAccessMenu, DASHBOARD_MENUS as MENUS, detectDashboardType, ROLE_PERMISSION_FIELDS } from "../lib/dashboardAccess";
 
 const EMPTY_OWNER_OVERVIEW = {
   total_clients: 0,
@@ -330,56 +286,6 @@ function mapTaskToUpdateForm(task) {
   };
 }
 
-function detectDashboardType(profile) {
-  const role = String(profile?.role || "").toLowerCase();
-  const permissions = profile?.permissions || {};
-
-  if (role.includes("owner") || permissions.can_manage_company) return "owner";
-  if (role.includes("manager")) return "manager";
-  if (role.includes("hr")) return "hr";
-  if (role.includes("client")) return "client";
-
-  if (permissions.can_view_team_tasks) return "manager";
-  if (permissions.can_manage_hr) return "hr";
-  if (permissions.can_view_project_progress && !permissions.can_view_assigned_tasks) return "client";
-
-  return "employee";
-}
-
-function canAccessMenu(roleType, menuId, permissions) {
-  if (roleType === "owner") {
-    if (menuId === "owner-dashboard") return true;
-    if (menuId === "owner-roles") return permissions.can_manage_roles || permissions.can_manage_company;
-    if (menuId === "owner-users") return permissions.can_manage_users || permissions.can_manage_company;
-    if (menuId === "owner-projects") return permissions.can_manage_company || permissions.can_create_project || permissions.can_view_all_tasks;
-    if (menuId === "owner-tasks") return permissions.can_view_all_tasks || permissions.can_manage_company;
-    if (menuId === "owner-company") return permissions.can_manage_company;
-  }
-
-  if (roleType === "manager") {
-    if (menuId === "manager-dashboard") return true;
-    if (menuId === "manager-users") return permissions.can_manage_users || permissions.can_view_team_tasks;
-    if (menuId === "manager-roles") return permissions.can_manage_roles;
-    if (menuId === "manager-projects") return true;
-    if (menuId === "manager-tasks") return true;
-    if (menuId === "manager-attendance") return true;
-  }
-
-  if (roleType === "employee") {
-    if (menuId === "employee-dashboard") return true;
-    if (menuId === "employee-attendance") return true;
-  }
-
-  if (roleType === "hr") {
-    return true;
-  }
-
-  if (roleType === "client") {
-    return true;
-  }
-
-  return true;
-}
 
 function parseProgressValue(value) {
   if (value === null || value === undefined) return 0;
@@ -529,7 +435,7 @@ function AnalyticsBarChart({ title, subtitle, bars, emptyText = "No data availab
   const maxValue = Math.max(1, ...safeBars.map((bar) => Number(bar?.value || 0)));
 
   return (
-    <section className="rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: "#dbeafe" }}>
+    <section className="mx-auto w-full max-w-3xl rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: "#dbeafe" }}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-extrabold uppercase tracking-widest text-slate-500">{title}</p>
@@ -539,21 +445,23 @@ function AnalyticsBarChart({ title, subtitle, bars, emptyText = "No data availab
       {!safeBars.length ? (
         <p className="text-sm text-slate-500">{emptyText}</p>
       ) : (
-        <div className="flex h-52 items-end gap-3">
+        <div className="flex h-60 items-stretch gap-3">
           {safeBars.map((bar) => {
             const height = Math.max(14, Math.round((Number(bar?.value || 0) / maxValue) * 100));
             return (
-              <div key={bar.key || bar.label} className="flex flex-1 flex-col items-center gap-2">
+              <div key={bar.key || bar.label} className="flex min-w-0 flex-1 flex-col items-center">
                 <span className="text-xs font-bold" style={{ color: bar.color || "#1d4ed8" }}>{bar.value ?? 0}</span>
-                <div
-                  className="w-full rounded-t-2xl"
-                  style={{
-                    height: `${height}%`,
-                    minHeight: "14px",
-                    background: `linear-gradient(180deg, ${bar.color || "#3b82f6"}, ${(bar.color || "#3b82f6")}bb)`
-                  }}
-                />
-                <span className="text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500">{bar.label}</span>
+                <div className="mt-2 flex min-h-0 w-full flex-1 items-end">
+                  <div
+                    className="w-full rounded-t-2xl transition-all duration-500"
+                    style={{
+                      height: `${height}%`,
+                      minHeight: "14px",
+                      background: `linear-gradient(180deg, ${bar.color || "#3b82f6"}, ${(bar.color || "#3b82f6")}bb)`
+                    }}
+                  />
+                </div>
+                <span className="mt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500">{bar.label}</span>
               </div>
             );
           })}
@@ -577,7 +485,7 @@ function AnalyticsDonutCard({ title, total, segments, subtitle }) {
   });
 
   return (
-    <section className="rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: "#dbeafe" }}>
+    <section className="mx-auto w-full max-w-3xl rounded-2xl border bg-white p-5 shadow-sm" style={{ borderColor: "#dbeafe" }}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-extrabold uppercase tracking-widest text-slate-500">{title}</p>
@@ -863,6 +771,9 @@ export default function ManagerDashboardPage() {
   const [hrOverview, setHrOverview] = useState(EMPTY_HR_OVERVIEW);
   const [taskAnalytics, setTaskAnalytics] = useState(EMPTY_TASK_ANALYTICS);
   const [aiInsights, setAiInsights] = useState(EMPTY_AI_INSIGHTS);
+  const [copilotStatus, setCopilotStatus] = useState(null);
+  const [copilotForm, setCopilotForm] = useState({ title: "", brief: "" });
+  const [copilotPlan, setCopilotPlan] = useState(null);
 
   const [companies, setCompanies] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -889,6 +800,10 @@ export default function ManagerDashboardPage() {
   const [managerProjectTeamsByProjectId, setManagerProjectTeamsByProjectId] = useState({});
 
   const [createUserForm, setCreateUserForm] = useState({ company_id: "", first_name: "", email: "", role_id: "" });
+  const [onboardingFile, setOnboardingFile] = useState(null);
+  const [googleSheetUrl, setGoogleSheetUrl] = useState("");
+  const [onboardingPreview, setOnboardingPreview] = useState(null);
+  const [onboardingSource, setOnboardingSource] = useState("");
 
   const [createRoleForm, setCreateRoleForm] = useState({
     company: "",
@@ -1380,6 +1295,13 @@ export default function ManagerDashboardPage() {
   }, []);
 
   useEffect(() => {
+    if (activeMenu !== "ai-project-architect") return;
+    getData("/ai/copilot/status/")
+      .then((data) => setCopilotStatus(data))
+      .catch(() => setCopilotStatus({ available: false, setup_hint: "Unable to check the AI provider right now." }));
+  }, [activeMenu]);
+
+  useEffect(() => {
     if (!currentUser || !roleType) return undefined;
 
     const refreshVisibleWorkspace = () => {
@@ -1670,6 +1592,81 @@ export default function ManagerDashboardPage() {
     }
   };
 
+  const generateCopilotPlan = async (event) => {
+    event.preventDefault();
+    setCopilotPlan(null);
+    await runAction("ai-plan", async () => {
+      const plan = await postData("/ai/copilot/plans/", {
+        title: String(copilotForm.title || "").trim(),
+        brief: String(copilotForm.brief || "").trim(),
+      });
+      setCopilotPlan(plan);
+    });
+  };
+
+  const applyCopilotPlan = async () => {
+    if (!copilotPlan?.id || copilotPlan.status === "APPLIED") return;
+    await runAction("ai-apply-plan", async () => {
+      const applied = await postData(`/ai/copilot/plans/${copilotPlan.id}/apply/`, {});
+      setCopilotPlan(applied);
+      await refreshByRole(roleType);
+    });
+  };
+
+  const downloadOnboardingTemplate = async () => {
+    await runAction("onboarding-template", async () => {
+      const response = await api.get("/onboarding/template/", { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "workzen-onboarding-template.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    });
+  };
+
+  const previewOnboardingImport = async (source) => {
+    if (source === "file" && !onboardingFile) {
+      setErrorText("Choose an Excel or CSV file first.");
+      return;
+    }
+    if (source === "google" && !googleSheetUrl.trim()) {
+      setErrorText("Paste a Google Sheets link first.");
+      return;
+    }
+    await runAction("onboarding-preview", async () => {
+      let data;
+      if (source === "file") {
+        const payload = new FormData();
+        payload.append("file", onboardingFile);
+        ({ data } = await api.post("/onboarding/import/", payload));
+      } else {
+        data = await postData("/onboarding/import-google-sheet/", { url: googleSheetUrl.trim() });
+      }
+      setOnboardingPreview(data);
+      setOnboardingSource(source);
+    });
+  };
+
+  const confirmOnboardingImport = async () => {
+    if (!onboardingPreview?.valid || !onboardingSource) return;
+    await runAction("onboarding-import", async () => {
+      let data;
+      if (onboardingSource === "file") {
+        const payload = new FormData();
+        payload.append("file", onboardingFile);
+        payload.append("confirm", "true");
+        ({ data } = await api.post("/onboarding/import/", payload));
+      } else {
+        data = await postData("/onboarding/import-google-sheet/", { url: googleSheetUrl.trim(), confirm: true });
+      }
+      setOnboardingPreview(data);
+      await loadOwnerData();
+    });
+  };
+
   const submitCreateRole = async (e) => {
     e.preventDefault();
 
@@ -1905,13 +1902,13 @@ export default function ManagerDashboardPage() {
     }
 
     const label = userRow?.name || userRow?.email || userId;
-    const confirmed = typeof window === "undefined" ? true : window.confirm(`Delete user \"${label}\"?`);
+    const confirmed = typeof window === "undefined" ? true : window.confirm(`Deactivate user \"${label}\"? Their task history will be preserved.`);
     if (!confirmed) return;
 
     await runAction(`delete-user-${userId}`, async () => {
       await deleteData(`/delete-user/${userId}/`);
       await refreshByRole(roleType);
-    }, "✅ User deleted.");
+    }, "✅ User access deactivated. Task history was preserved.");
   };
 
   const submitCreateProject = async (e) => {
@@ -2009,7 +2006,7 @@ export default function ManagerDashboardPage() {
       await deleteData(`/projects/${deleteProjectForm.project_id}/`);
       setDeleteProjectForm({ project_id: "" });
       await refreshByRole(roleType);
-    }, "✅ Project deleted.");
+    }, "✅ Project archived.");
   };
 
   const assignClientFromProjectRow = async (projectRow) => {
@@ -2135,7 +2132,7 @@ export default function ManagerDashboardPage() {
     if (!projectId) return;
 
     const label = projectRow?.name || projectId;
-    const confirmed = typeof window === "undefined" ? true : window.confirm(`Delete project \"${label}\"?`);
+    const confirmed = typeof window === "undefined" ? true : window.confirm(`Archive project \"${label}\"? Its task history will be preserved.`);
     if (!confirmed) return;
 
     await runAction(`delete-project-${projectId}`, async () => {
@@ -2145,7 +2142,7 @@ export default function ManagerDashboardPage() {
         await deleteData(`/projects/${projectId}/deactivate/`);
       }
       await refreshByRole(roleType);
-    }, "✅ Project deleted.");
+    }, "✅ Project archived.");
   };
 
   const submitCreateTask = async (e) => {
@@ -2313,7 +2310,7 @@ export default function ManagerDashboardPage() {
       } else {
         setManagerProjectTasks((prev) => prev.filter((task) => Number(task?.id) !== numericTaskId));
       }
-    }, "✅ Task deleted.");
+    }, "✅ Task archived.");
   };
 
   const openEntityDetails = async (entityType, baseRow) => {
@@ -3043,7 +3040,8 @@ export default function ManagerDashboardPage() {
     return monthKeys.map((m) => ({
       ...m,
       value: completedByMonth[m.key] || 0,
-      height: Math.max(20, Math.round(((completedByMonth[m.key] || 0) / maxValue) * 100))
+      height: Math.max(20, Math.round(((completedByMonth[m.key] || 0) / maxValue) * 100)),
+      color: "#39d39b"
     }));
   }, [ownerTasks]);
 
@@ -4335,6 +4333,7 @@ export default function ManagerDashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationCenter placement="header" />
             <button className="rounded-lg px-4 py-2 text-sm font-semibold transition hover:bg-blue-50" style={{ background: "#ffffff", border: "1px solid #c7d7ee", color: "#16304f" }} onClick={logout}>Logout</button>
           </div>
         </div>
@@ -4436,23 +4435,11 @@ export default function ManagerDashboardPage() {
                 <StatCard label="Clients" value={ownerOverview.total_clients} accent="#ff6b6b" />
               </div>
               <div className="owner-analytics-grid">
-                <section className="rounded-2xl p-5 shadow-sm" style={{ border: "1px solid #dbeafe" }}>
-                  <div className="mb-4 flex items-center justify-between">
-                    <p className="text-sm font-extrabold uppercase tracking-widest text-slate-500">Task Completion</p>
-                    <p className="text-xs font-semibold text-slate-500">Last 6 months</p>
-                  </div>
-                  <div className="flex h-44 items-end gap-3">
-                    {ownerMonthlyCompletion.map((bar) => (
-                      <div key={bar.key} className="flex flex-1 flex-col items-center gap-2">
-                        <div
-                          className="w-full rounded-t-md"
-                          style={{ height: `${bar.height}%`, minHeight: "14px", background: "linear-gradient(180deg, #39d39b, #22b97f)" }}
-                        />
-                        <span className="text-xs font-semibold text-slate-500">{bar.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
+                <AnalyticsBarChart
+                  title="Task Completion"
+                  subtitle="Completed work over the last 6 months"
+                  bars={ownerMonthlyCompletion}
+                />
                 <section className="rounded-2xl p-5 shadow-sm" style={{ border: "1px solid #dbeafe" }}>
                   <p className="mb-4 text-sm font-extrabold uppercase tracking-widest text-slate-500">Task Status Distribution</p>
                   <div className="flex flex-wrap items-center gap-6">
@@ -4503,6 +4490,112 @@ export default function ManagerDashboardPage() {
                 </section>
               </div>
             </>
+          ) : null}
+
+          {activeMenu === "ai-project-architect" ? (
+            <section className="space-y-5">
+              <div className="overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-950 via-blue-950 to-slate-950 p-6 text-white shadow-xl">
+                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-violet-200">Generative AI workspace</p>
+                <h2 className="mt-2 text-3xl font-extrabold" style={{ fontFamily: "'Georgia', serif" }}>AI Project Architect</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-blue-100">Turn an unstructured project brief into a reviewable execution plan with milestones, risks, mitigations, acceptance criteria, and workload-aware task suggestions. You decide whether to apply it.</p>
+                <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
+                  <span className="rounded-full border border-violet-300/40 bg-white/10 px-3 py-1.5">{copilotStatus?.provider || "Google Gemini"}</span>
+                  <span className={`rounded-full border px-3 py-1.5 ${copilotStatus?.available ? "border-emerald-300/50 bg-emerald-400/20 text-emerald-100" : "border-amber-300/50 bg-amber-400/20 text-amber-100"}`}>{copilotStatus?.available ? "Live AI provider ready" : "AI provider needs setup"}</span>
+                  <span className="rounded-full border border-blue-300/40 bg-white/10 px-3 py-1.5">Human approval required</span>
+                </div>
+              </div>
+
+              {!copilotStatus?.available ? (
+                <article className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow-sm">
+                  <p className="font-extrabold">Gemini is not configured yet.</p>
+                  <p className="mt-1">{copilotStatus?.setup_hint || "Checking provider configuration..."}</p>
+                  <p className="mt-3 text-xs leading-5">WorkZen sends only the entered brief, task/project delivery signals, and anonymous role/workload candidates. No company name, people names, emails, credentials, or tokens are sent to Gemini.</p>
+                </article>
+              ) : null}
+
+              <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)]">
+                <form className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm" onSubmit={generateCopilotPlan}>
+                  <SectionTitle title="Create plan from a brief" />
+                  <p className="mb-4 text-sm leading-6 text-slate-500">Include goal, users, scope, expected output, deadline, constraints, and any known risks.</p>
+                  <label className="block text-sm font-bold text-slate-700">Project title<input className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-violet-700 focus:ring-2 focus:ring-violet-200" value={copilotForm.title} onChange={(event) => setCopilotForm((current) => ({ ...current, title: event.target.value }))} placeholder="Example: Customer onboarding portal" required /></label>
+                  <label className="mt-4 block text-sm font-bold text-slate-700">Project brief<textarea className="mt-1 min-h-52 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm leading-6 text-slate-800 outline-none focus:border-violet-700 focus:ring-2 focus:ring-violet-200" value={copilotForm.brief} onChange={(event) => setCopilotForm((current) => ({ ...current, brief: event.target.value }))} placeholder="Describe what needs to be delivered, who will use it, deadlines, constraints, success criteria, and any known risks." minLength={40} required /></label>
+                  <button className="mt-4 w-full rounded-lg bg-violet-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60" disabled={!copilotStatus?.available || busyKey === "ai-plan"}>{busyKey === "ai-plan" ? "Gemini is creating your plan..." : "Generate AI execution plan"}</button>
+                </form>
+
+                <article className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+                  {!copilotPlan ? (
+                    <div className="flex min-h-72 flex-col justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+                      <p className="font-extrabold text-slate-700">Your reviewed AI plan will appear here.</p>
+                      <p className="mt-2 text-sm leading-6 text-slate-500">It will never create tasks automatically. Review the generated scope, risks, and task list before selecting Apply plan.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div><p className="text-xs font-extrabold uppercase tracking-widest text-violet-700">Gemini plan draft</p><h3 className="mt-1 text-2xl font-extrabold text-slate-900" style={{ fontFamily: "'Georgia', serif" }}>{copilotPlan.plan?.project?.name || copilotPlan.title}</h3></div>
+                        <button type="button" className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:opacity-60" onClick={applyCopilotPlan} disabled={copilotPlan.status === "APPLIED" || busyKey === "ai-apply-plan"}>{copilotPlan.status === "APPLIED" ? "Plan applied" : busyKey === "ai-apply-plan" ? "Applying..." : "Apply plan to workspace"}</button>
+                      </div>
+                      <p className="rounded-xl bg-violet-50 p-4 text-sm leading-6 text-violet-950">{copilotPlan.plan?.executive_summary || "No executive summary returned."}</p>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="rounded-xl border border-amber-100 bg-amber-50 p-4"><p className="text-xs font-extrabold uppercase tracking-widest text-amber-800">Risks and mitigations</p><ul className="mt-2 space-y-2 text-sm text-amber-950">{(copilotPlan.plan?.risks || []).map((item, index) => <li key={index}><strong>{item.risk || "Risk"}:</strong> {item.mitigation || "Review during planning."}</li>)}</ul></div>
+                        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4"><p className="text-xs font-extrabold uppercase tracking-widest text-blue-800">Assumptions</p><ul className="mt-2 space-y-2 text-sm text-blue-950">{(copilotPlan.plan?.assumptions || []).map((item, index) => <li key={index}>{item}</li>)}</ul></div>
+                      </div>
+                      <div><p className="mb-2 text-xs font-extrabold uppercase tracking-widest text-slate-500">Suggested tasks</p><div className="max-h-96 space-y-2 overflow-y-auto pr-1">{(copilotPlan.plan?.tasks || []).map((task, index) => <div key={`${task.title}-${index}`} className="rounded-xl border border-slate-200 p-3"><div className="flex items-start justify-between gap-3"><p className="font-bold text-slate-900">{task.title}</p><span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-extrabold text-blue-800">{task.priority}</span></div><p className="mt-1 text-sm text-slate-600">{task.description}</p>{task.acceptance_criteria ? <p className="mt-2 text-xs font-semibold text-emerald-800">Acceptance: {task.acceptance_criteria}</p> : null}</div>)}</div></div>
+                      <p className="text-xs leading-5 text-slate-500">Evidence used: {copilotPlan.plan?.context_evidence?.active_member_count || 0} active team members and {copilotPlan.plan?.context_evidence?.active_project_count || 0} active projects. {copilotPlan.plan?.context_evidence?.external_data_policy}</p>
+                    </div>
+                  )}
+                </article>
+              </div>
+            </section>
+          ) : null}
+
+          {activeMenu === "owner-import" ? (
+            <section className="space-y-5">
+              <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-cyan-50 p-6 shadow-sm">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-blue-800/60">Owner setup</p>
+                <h2 className="mt-1 text-2xl font-extrabold text-slate-900" style={{ fontFamily: "'Georgia', serif" }}>Import company data</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Upload one workbook to create or update your company members, departments, projects, and tasks. Data always stays inside the currently logged-in company.</p>
+                <button type="button" className="mt-4 rounded-lg border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-900 shadow-sm transition hover:bg-blue-50 disabled:opacity-60" onClick={downloadOnboardingTemplate} disabled={busyKey === "onboarding-template"}>{busyKey === "onboarding-template" ? "Preparing template..." : "Download Excel template"}</button>
+              </div>
+
+              <div className="grid gap-5 xl:grid-cols-2">
+                <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="font-extrabold text-slate-900">Excel or CSV upload</h3>
+                  <p className="mt-1 text-sm text-slate-500">Excel supports Employees, Projects, and Tasks sheets. CSV imports an Employees roster.</p>
+                  <input type="file" accept=".xlsx,.csv" className="mt-4 block w-full rounded-lg border border-slate-200 p-2 text-sm" onChange={(event) => { setOnboardingFile(event.target.files?.[0] || null); setOnboardingPreview(null); setOnboardingSource(""); }} />
+                  <button type="button" className="mt-4 rounded-lg bg-blue-800 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-900 disabled:opacity-60" onClick={() => previewOnboardingImport("file")} disabled={busyKey === "onboarding-preview"}>Validate and preview</button>
+                </article>
+
+                <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="font-extrabold text-slate-900">Google Sheets import</h3>
+                  <p className="mt-1 text-sm text-slate-500">Share the sheet as “Anyone with the link can view”, keep the three required tabs, then paste its link here.</p>
+                  <input className="mt-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-200" value={googleSheetUrl} onChange={(event) => { setGoogleSheetUrl(event.target.value); setOnboardingPreview(null); setOnboardingSource(""); }} placeholder="https://docs.google.com/spreadsheets/d/..." />
+                  <button type="button" className="mt-4 rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:opacity-60" onClick={() => previewOnboardingImport("google")} disabled={busyKey === "onboarding-preview"}>Validate Google Sheet</button>
+                </article>
+              </div>
+
+              <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="font-extrabold text-slate-900">Workbook rules</h3>
+                <div className="mt-3 grid gap-3 text-sm text-slate-600 md:grid-cols-3">
+                  <p><strong className="text-slate-800">Employees:</strong> name, email, role. Supported roles: Manager, HR, Employee, Client.</p>
+                  <p><strong className="text-slate-800">Projects:</strong> link manager/client through their email addresses and use YYYY-MM-DD dates.</p>
+                  <p><strong className="text-slate-800">Tasks:</strong> connect each task to a project and assignee email. Preview before any data is saved.</p>
+                </div>
+              </article>
+
+              {onboardingPreview ? (
+                <article className={`rounded-2xl border p-5 shadow-sm ${onboardingPreview.valid ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-extrabold text-slate-900">{onboardingPreview.valid ? "Import preview is ready" : "Fix these workbook issues"}</h3>
+                      <p className="mt-1 text-sm text-slate-600">{onboardingPreview.summary?.employees || 0} members, {onboardingPreview.summary?.projects || 0} projects, {onboardingPreview.summary?.tasks || 0} tasks.</p>
+                    </div>
+                    {onboardingPreview.valid ? <button type="button" className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:opacity-60" onClick={confirmOnboardingImport} disabled={busyKey === "onboarding-import"}>{busyKey === "onboarding-import" ? "Importing..." : "Confirm import"}</button> : null}
+                  </div>
+                  {onboardingPreview.errors?.length ? <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-rose-800">{onboardingPreview.errors.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul> : null}
+                  {onboardingPreview.warnings?.length ? <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-amber-800">{onboardingPreview.warnings.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}</ul> : null}
+                </article>
+              ) : null}
+            </section>
           ) : null}
 
           {activeMenu === "owner-roles" ? (
@@ -5265,7 +5358,7 @@ export default function ManagerDashboardPage() {
                 </div>
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-3">
+              <div className="grid gap-4 xl:grid-cols-2">
                 <AnalyticsBarChart
                   title="Attendance Graph"
                   subtitle="Today's attendance breakup"

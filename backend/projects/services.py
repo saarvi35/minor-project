@@ -7,7 +7,7 @@ def recalculate_project_progress(project_id):
     except Project.DoesNotExist:
         return
 
-    tasks = Task.objects.filter(project=project)
+    tasks = Task.objects.filter(project=project, is_archived=False)
     total_tasks = tasks.count()
 
     if total_tasks == 0:

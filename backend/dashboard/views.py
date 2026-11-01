@@ -10,6 +10,7 @@ from companies.utils import get_company_user, get_permission_dict
 from hr.models import LeaveRequest
 from projects.models import Project
 from tasks.models import Task
+from tasks.querysets import with_task_relations
 
 from .serializers import (
     ClientProjectProgressSerializer,
@@ -24,6 +25,8 @@ from .serializers import (
 
 def has_permission(request, permission_name):
     company_user = get_company_user(request.user)
+    if not company_user:
+        return None, Response({"error": "Company user not found"}, status=404)
     permissions = get_permission_dict(company_user.role)
 
     if not permissions.get(permission_name):
@@ -68,14 +71,14 @@ class DashboardOverviewAPI(APIView):
 
         company = company_user.company
 
-        total_tasks = Task.objects.filter(company=company).count()
-        completed_tasks = Task.objects.filter(company=company, status="COMPLETED").count()
-        pending_tasks = Task.objects.filter(company=company, status="PENDING").count()
+        total_tasks = Task.objects.filter(company=company, is_archived=False).count()
+        completed_tasks = Task.objects.filter(company=company, is_archived=False, status="COMPLETED").count()
+        pending_tasks = Task.objects.filter(company=company, is_archived=False, status="PENDING").count()
 
         completion_rate = (completed_tasks / total_tasks) * 100 if total_tasks > 0 else 0
 
         overdue_tasks = Task.objects.filter(
-            company=company,
+            company=company, is_archived=False,
             due_date__lt=timezone.now(),
             status__in=["PENDING", "IN_PROGRESS"],
         ).count()
@@ -111,7 +114,7 @@ class MyTasksAPI(APIView):
         if not permissions.get("can_view_assigned_tasks"):
             return Response({"error": "Permission denied"}, status=403)
 
-        tasks = Task.objects.filter(assigned_to=company_user)
+        tasks = with_task_relations(Task.objects.filter(assigned_to=company_user, is_archived=False))
 
         serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data)
@@ -177,21 +180,27 @@ class AllTasksAPI(APIView):
 
         # OWNER / ADMIN
         if permissions.get("can_view_all_tasks"):
-            tasks = Task.objects.filter(company=company_user.company)
+            tasks = Task.objects.filter(company=company_user.company, is_archived=False)
 
         # MANAGER
         elif permissions.get("can_view_team_tasks"):
-            tasks = Task.objects.filter(
-                project__manager=company_user
+            tasks = Task.objects.filter(company=company_user.company, is_archived=False).filter(
+                Q(project__manager=company_user)
+                | Q(project__isnull=True, created_by=company_user)
             )
 
         # EMPLOYEE
-        elif permissions("can_view_assigned_tasks"):
+        elif permissions.get("can_view_assigned_tasks"):
             tasks = Task.objects.filter(
-                assigned_to=company_user
+                assigned_to=company_user, is_archived=False
             )
+        else:
+            tasks = Task.objects.none()
 
-        tasks = tasks.select_related("assigned_to", "project")
+        if project_id:
+            tasks = tasks.filter(project_id=project_id)
+
+        tasks = with_task_relations(tasks)
 
         serializer = TaskSerializer(tasks, many=True)
 
@@ -202,16 +211,22 @@ class TaskAnalyticsAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        company_user, error = has_permission(request, "can_view_task_analytics")
-        if error:
-            return error
+        company_user = get_company_user(request.user)
+        if not company_user:
+            return Response({"error": "Company user not found"}, status=404)
+        permissions = get_permission_dict(company_user.role)
+        if permissions.get("can_view_all_tasks") or permissions.get("can_manage_company"):
+            tasks = Task.objects.filter(company=company_user.company, is_archived=False)
+        elif permissions.get("can_view_team_tasks"):
+            tasks = Task.objects.filter(company=company_user.company, is_archived=False, project__manager=company_user)
+        elif permissions.get("can_view_assigned_tasks"):
+            tasks = Task.objects.filter(assigned_to=company_user, is_archived=False)
+        else:
+            return Response({"error": "Permission denied"}, status=403)
 
-        company = company_user.company
-
-        total = Task.objects.filter(company=company).count()
-        completed = Task.objects.filter(company=company, status="COMPLETED").count()
-        overdue = Task.objects.filter(
-            company=company,
+        total = tasks.count()
+        completed = tasks.filter(status="COMPLETED").count()
+        overdue = tasks.filter(
             due_date__lt=timezone.now(),
             status__in=["PENDING", "IN_PROGRESS"],
         ).count()
@@ -261,7 +276,7 @@ class ClientProjectsProgressAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        company_user, error = has_permission(request, "can_view_client_projects")
+        company_user, error = has_permission(request, "can_view_project_progress")
         if error:
             return error
 
@@ -306,14 +321,14 @@ class ManagerOverviewAPI(APIView):
         total_projects = projects.count()
 
         if permissions.get("can_view_all_tasks"):
-            tasks = Task.objects.filter(company=company_user.company)
+            tasks = Task.objects.filter(company=company_user.company, is_archived=False)
         elif permissions.get("can_view_team_tasks") or manager_role:
-            tasks = Task.objects.filter(company=company_user.company).filter(
+            tasks = Task.objects.filter(company=company_user.company, is_archived=False).filter(
                 Q(project__manager=company_user)
                 | Q(project__isnull=True, created_by=company_user)
             ).distinct()
         else:
-            tasks = Task.objects.filter(assigned_to=company_user)
+            tasks = Task.objects.filter(assigned_to=company_user, is_archived=False)
 
         total_tasks = tasks.count()
         completed_tasks = tasks.filter(status="COMPLETED").count()

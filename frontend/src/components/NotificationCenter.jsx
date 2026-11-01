@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getData, postData } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
-export default function NotificationCenter() {
+export default function NotificationCenter({ placement = "floating" }) {
   const navigate = useNavigate();
   const { token, user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -55,12 +55,12 @@ export default function NotificationCenter() {
   const canManageWorkflows = ["owner", "admin", "manager"].some((role) => roleText.includes(role));
 
   return (
-    <div className="fixed right-4 top-4 z-50 flex items-start gap-2">
-      {canManageWorkflows ? <button type="button" className="rounded-full border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-900 shadow-md transition hover:bg-blue-50" onClick={() => navigate("/workflows")}>Automations</button> : null}
+    <div className={`${placement === "header" ? "relative" : "fixed right-4 top-4 z-50"} flex items-start gap-2`}>
+      {canManageWorkflows ? <button type="button" className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-900 shadow-sm transition hover:bg-blue-50" onClick={() => navigate("/workflows")}>Automations</button> : null}
       <div>
       <button
         type="button"
-        className="relative rounded-full border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-900 shadow-md transition hover:bg-blue-50"
+        className="relative rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-900 shadow-sm transition hover:bg-blue-50"
         onClick={() => setIsOpen((value) => !value)}
         aria-label="Open notifications"
       >
@@ -69,7 +69,7 @@ export default function NotificationCenter() {
       </button>
 
       {isOpen ? (
-        <section className="absolute right-0 mt-2 w-[min(23rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+        <section className={`${placement === "header" ? "fixed right-4 top-16 z-[60]" : "absolute right-0 mt-2"} w-[min(23rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl`}>
           <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <div>
               <h2 className="font-bold text-slate-900">Notifications</h2>

@@ -9,6 +9,7 @@ from companies.utils import get_company_user, get_permission_dict
 
 from .models import *
 from .serializers import *
+from companies.permissions import current_company_user, require_permission
 
 
 def manager_employee_company_users(company):
@@ -24,7 +25,7 @@ class HRDashboardAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        company_user = get_company_user(request.user)
+        company_user = current_company_user(request)
         permissions = get_permission_dict(company_user.role)
 
         if not permissions.get("can_manage_hr"):
@@ -72,17 +73,16 @@ class MyProfileAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        company_user = get_company_user(request.user)
-
-        profile = EmployeeProfile.objects.get(company_user=company_user)
-        serializer = EmployeeProfileSerializer(profile)
+        company_user = current_company_user(request)
+        profile, _ = EmployeeProfile.objects.get_or_create(company_user=company_user)
+        serializer = SelfEmployeeProfileSerializer(profile)
         return Response(serializer.data)
 
     def put(self, request):
-        company_user = get_company_user(request.user)
-        profile = EmployeeProfile.objects.get(company_user=company_user)
+        company_user = current_company_user(request)
+        profile, _ = EmployeeProfile.objects.get_or_create(company_user=company_user)
 
-        serializer = EmployeeProfileSerializer(
+        serializer = SelfEmployeeProfileSerializer(
             profile, data=request.data, partial=True
         )
         serializer.is_valid(raise_exception=True)
@@ -138,18 +138,16 @@ class UpdateLeaveStatusAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, leave_id):
-        company_user = get_company_user(request.user)
-        permissions = get_permission_dict(company_user.role)
-
-        if not permissions.get("can_manage_hr"):
-            return Response({"error": "Permission denied"}, status=403)
+        company_user = require_permission(request, "can_manage_hr")
 
         leave = LeaveRequest.objects.select_related("company_user__role", "company_user__user").get(
             id=leave_id,
             company_user__company=company_user.company
         )
 
-        leave.status = str(request.data.get("status") or "").upper()
+        status_serializer = LeaveStatusUpdateSerializer(data=request.data)
+        status_serializer.is_valid(raise_exception=True)
+        leave.status = status_serializer.validated_data["status"]
         leave.save()
 
         serializer = LeaveSerializer(leave)
@@ -160,13 +158,12 @@ class AddPerformanceReviewAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, employee_id):
-        company_user = get_company_user(request.user)
-        permissions = get_permission_dict(company_user.role)
+        company_user = require_permission(request, "can_manage_hr")
 
-        if not permissions.get("can_manage_hr"):
-            return Response({"error": "Permission denied"}, status=403)
-
-        employee = CompanyUser.objects.get(id=employee_id)
+        try:
+            employee = CompanyUser.objects.get(id=employee_id, company=company_user.company)
+        except CompanyUser.DoesNotExist:
+            return Response({"error": "Employee not found"}, status=404)
 
         serializer = PerformanceReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

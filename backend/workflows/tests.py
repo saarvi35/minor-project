@@ -84,3 +84,19 @@ class WorkflowRuleAPITests(APITestCase):
         self.assertEqual(first_run, 1)
         self.assertEqual(second_run, 0)
         self.assertEqual(WorkflowRun.objects.filter(task=self.task, status="EXECUTED").count(), 1)
+
+    def test_sla_watchdog_skips_archived_tasks(self):
+        self.task.due_date = timezone.localdate() - timedelta(days=1)
+        self.task.is_archived = True
+        self.task.save(update_fields=["due_date", "is_archived"])
+        WorkflowRule.objects.create(
+            company=self.company,
+            created_by=self.company_user,
+            name="Ignore archived work",
+            trigger="TASK_OVERDUE",
+            condition_field="ANY",
+            action="CREATE_ACTIVITY",
+        )
+
+        self.assertEqual(run_sla_watchdog.run(), 0)
+        self.assertFalse(WorkflowRun.objects.filter(task=self.task).exists())

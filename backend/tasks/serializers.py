@@ -82,8 +82,8 @@ class TaskSerializer(serializers.ModelSerializer):
                 if "assigned_to" in self.fields:
                     queryset = CompanyUser.objects.filter(
                         company=company,
-                        role__level__gte=40,
-                        role__level__lt=70
+                        status="ACTIVE",
+                        role__can_view_assigned_tasks=True,
                     )
 
                     self.fields["assigned_to"].queryset = queryset

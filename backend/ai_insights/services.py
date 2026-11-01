@@ -34,7 +34,7 @@ def company_user_display_name(company_user):
 
 def accessible_tasks_for(company_user):
     permissions = get_permission_dict(company_user.role)
-    tasks = Task.objects.filter(company=company_user.company)
+    tasks = Task.objects.filter(company=company_user.company, is_archived=False)
 
     if permissions.get("can_view_all_tasks") or permissions.get("can_manage_company"):
         return tasks
@@ -68,7 +68,7 @@ def accessible_projects_for(company_user):
 
 def active_workload_counts(company):
     return dict(
-        Task.objects.filter(company=company, status__in=ACTIVE_TASK_STATUSES)
+        Task.objects.filter(company=company, is_archived=False, status__in=ACTIVE_TASK_STATUSES)
         .values("assigned_to_id")
         .annotate(total=Count("id"))
         .values_list("assigned_to_id", "total")

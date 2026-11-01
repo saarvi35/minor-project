@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workzen
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring

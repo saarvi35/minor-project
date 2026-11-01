@@ -9,8 +9,8 @@ RUN apt-get update \
     && apt-get install --no-install-recommends -y build-essential default-libmysqlclient-dev pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt requirements-sla.txt ./
-RUN pip install --no-cache-dir -r requirements.txt -r requirements-sla.txt
+COPY requirements.txt requirements-sla.txt requirements-onboarding.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-sla.txt -r requirements-onboarding.txt
 
 COPY . .
 

@@ -1,0 +1,2 @@
+# The Gemini REST API connector uses Python's standard library.
+# No separate package is required for the AI Project Architect.

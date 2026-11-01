@@ -10,6 +10,7 @@ backend/staticfiles/
 
 # Environment files
 backend/.env
+k8s/*-secrets.local.yaml
 
 # =========================
 # 🔹 Frontend (React / Vite)

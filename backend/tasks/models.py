@@ -1,6 +1,7 @@
 from django.db import models
 from companies.models import Company,CompanyUser
 from django.core.validators import MaxValueValidator
+from django.utils import timezone
 
 class Task(models.Model):
 
@@ -81,10 +82,26 @@ class Task(models.Model):
     validators=[MaxValueValidator(100)]
 )
 
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.title
+
+    def archive(self):
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.save(update_fields=["is_archived", "archived_at"])
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["company", "is_archived", "status"], name="task_company_active_status_idx"),
+            models.Index(fields=["company", "is_archived", "due_date"], name="task_company_active_due_idx"),
+            models.Index(fields=["assigned_to", "is_archived", "status"], name="task_assignee_active_idx"),
+            models.Index(fields=["project", "is_archived"], name="task_project_active_idx"),
+        ]
 
 
 class TaskComment(models.Model):

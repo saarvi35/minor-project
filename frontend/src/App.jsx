@@ -1,7 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
-import NotificationCenter from "./components/NotificationCenter";
 
 const ManagerDashboardPage = lazy(() => import("./pages/ManagerDashboardPage"));
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -65,7 +64,6 @@ export default function App() {
   return (
     <AuthProvider>
       <GlobalThemeToggle />
-      <NotificationCenter />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public homepage */}

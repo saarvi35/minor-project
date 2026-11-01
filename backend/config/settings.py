@@ -10,8 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
+from django.core.exceptions import ImproperlyConfigured
 
 load_dotenv()
 
@@ -22,18 +24,41 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_list(name, default=None):
+    value = os.getenv(name, "")
+    if not value:
+        return default or []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+# Development is deliberately opt-in via DEBUG=True. Production must provide a
+# real secret and explicit host/origin configuration through environment vars.
+DEBUG = env_bool("DEBUG", default=True)
+RUNNING_TESTS = "test" in sys.argv
 SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-local-development-key-change-before-deploying"
+    else:
+        raise ImproperlyConfigured("SECRET_KEY must be set when DEBUG=False.")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG") == "False"
-
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = env_list(
+    "ALLOWED_HOSTS",
+    default=["localhost", "127.0.0.1", "testserver"] if DEBUG else [],
+)
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'django_prometheus',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -41,6 +66,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'gunicorn',
     'accounts',
     'corsheaders',
@@ -54,6 +80,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -63,6 +90,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 
@@ -150,17 +178,58 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         "rest_framework.authentication.SessionAuthentication",
     ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    'DEFAULT_THROTTLE_CLASSES': (
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ),
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '60/minute',
+        'user': '240/minute',
+        'auth': '10/minute',
+        'registration': '5/hour',
+        'password_setup': '10/hour',
+        'ai': '10/hour',
+    },
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-]
+CORS_ALLOWED_ORIGINS = env_list(
+    "CORS_ALLOWED_ORIGINS",
+    default=["http://localhost:5173"] if DEBUG else [],
+)
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", default=CORS_ALLOWED_ORIGINS)
+CORS_ALLOW_CREDENTIALS = False
 
-FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", default="")
+SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", default=not DEBUG and not RUNNING_TESTS)
+SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", default=not DEBUG and not RUNNING_TESTS)
+CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", default=not DEBUG and not RUNNING_TESTS)
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000" if not DEBUG else "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", default=not DEBUG)
+SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", default=not DEBUG)
+
+FRONTEND_BASE_URL = os.getenv(
+    "FRONTEND_BASE_URL",
+    default="http://localhost:5173" if DEBUG else "",
+)
+# Google Identity Services uses this public OAuth client identifier to verify
+# that an access token was issued for this WorkZen application.  Keep the
+# value in the environment so local, CI and production configurations can use
+# distinct OAuth clients without code changes.
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -170,3 +239,14 @@ EMAIL_PORT = 587
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# Local background jobs use the Redis service defined in compose.yaml.  Keeping
+# these values environment-configurable lets production provide managed Redis.
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://127.0.0.1:6379/1")
+CELERY_BEAT_SCHEDULE = {
+    "workflow-sla-watchdog": {
+        "task": "workflows.tasks.run_sla_watchdog",
+        "schedule": 3600.0,
+    },
+}

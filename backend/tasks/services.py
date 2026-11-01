@@ -8,7 +8,7 @@ def sync_project_progress(project):
     if not project:
         return
 
-    average_progress = project.tasks.aggregate(value=Avg("progress"))["value"]
+    average_progress = project.tasks.filter(is_archived=False).aggregate(value=Avg("progress"))["value"]
     project.progress = round(average_progress or 0)
     project.save(update_fields=["progress"])
 

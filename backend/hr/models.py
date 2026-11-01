@@ -42,6 +42,11 @@ class Department(models.Model):
     def __str__(self):
         return f"{self.name} - {self.company.name}"
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["company", "name"], name="unique_department_name_per_company"),
+        ]
+
 
 class Attendance(models.Model):
     company_user = models.ForeignKey(

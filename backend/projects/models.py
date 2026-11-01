@@ -57,3 +57,10 @@ class Project(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["company", "is_active", "status"], name="project_company_active_idx"),
+            models.Index(fields=["manager", "is_active"], name="project_manager_active_idx"),
+            models.Index(fields=["client", "is_active"], name="project_client_active_idx"),
+        ]
+

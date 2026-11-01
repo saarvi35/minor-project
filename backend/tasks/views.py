@@ -11,6 +11,7 @@ from companies.utils import get_company_user, get_permission_dict
 from .models import Task, TaskActivity, TaskComment, TaskNotification
 from .serializers import TaskActivitySerializer, TaskCommentSerializer, TaskNotificationSerializer, TaskSerializer
 from .services import notify_task_members, sync_project_progress
+from .querysets import with_task_relations
 from workflows.services import evaluate_task_update_workflows
 
 
@@ -32,16 +33,16 @@ class TaskViewSet(viewsets.ModelViewSet):
         permissions = get_permission_dict(company_user.role)
 
         if permissions.get("can_view_all_tasks"):
-            return Task.objects.filter(company=company_user.company)
+            return with_task_relations(Task.objects.filter(company=company_user.company, is_archived=False))
 
         if permissions.get("can_view_team_tasks"):
-            return Task.objects.filter(company=company_user.company).filter(
+            return with_task_relations(Task.objects.filter(company=company_user.company, is_archived=False).filter(
                 Q(project__manager=company_user)
                 | Q(project__isnull=True, created_by=company_user)
-            )
+            ))
 
         if permissions.get("can_view_assigned_tasks"):
-            return Task.objects.filter(assigned_to=company_user)
+            return with_task_relations(Task.objects.filter(assigned_to=company_user, is_archived=False))
 
         return Task.objects.none()
 
@@ -91,20 +92,25 @@ class TaskViewSet(viewsets.ModelViewSet):
         if updated_task.project_id != getattr(previous_project, "id", None):
             sync_project_progress(updated_task.project)
 
-    def _ensure_task_update_permission(self, task, company_user):
+    MEMBER_EDITABLE_FIELDS = {"status", "progress"}
+
+    def _ensure_task_update_permission(self, task, company_user, requested_fields):
         permissions = get_permission_dict(company_user.role)
 
-        if permissions.get("can_view_all_tasks"):
+        if permissions.get("can_manage_company") or permissions.get("can_assign_task"):
             return
 
         if permissions.get("can_view_team_tasks"):
-            if task.created_by != company_user:
-                raise PermissionDenied("You can only update tasks created by you")
+            if task.created_by != company_user and task.project_id and task.project.manager_id != company_user.id:
+                raise PermissionDenied("You can only manage tasks you created or manage through a project.")
             return
 
-        if permissions.get("can_view_assigned_tasks"):
+        if permissions.get("can_view_assigned_tasks") and permissions.get("can_update_task_status"):
             if task.assigned_to != company_user:
-                raise PermissionDenied("You can only update your assigned task")
+                raise PermissionDenied("You can only update your assigned task.")
+            forbidden_fields = set(requested_fields) - self.MEMBER_EDITABLE_FIELDS
+            if forbidden_fields:
+                raise PermissionDenied("Assigned members may only update task status and progress.")
             return
 
         raise PermissionDenied("You don't have permission to update task")
@@ -115,7 +121,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Company not found")
 
         task = self.get_object()
-        self._ensure_task_update_permission(task, company_user)
+        self._ensure_task_update_permission(task, company_user, request.data.keys())
 
         return super().update(request, *args, **kwargs)
 
@@ -125,7 +131,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("Company not found")
 
         task = self.get_object()
-        self._ensure_task_update_permission(task, company_user)
+        self._ensure_task_update_permission(task, company_user, request.data.keys())
 
         return super().partial_update(request, *args, **kwargs)
 
@@ -139,7 +145,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You don't have permission to delete tasks")
 
         project = instance.project
-        instance.delete()
+        instance.archive()
         sync_project_progress(project)
 
     @action(detail=True, methods=["get", "post"], url_path="comments")
