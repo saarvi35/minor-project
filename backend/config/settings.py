@@ -53,6 +53,9 @@ ALLOWED_HOSTS = env_list(
     "ALLOWED_HOSTS",
     default=["localhost", "127.0.0.1", "testserver"] if DEBUG else [],
 )
+# Render injects the public host name of a web service; trust it automatically.
+if os.getenv("RENDER_EXTERNAL_HOSTNAME") and os.getenv("RENDER_EXTERNAL_HOSTNAME") not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(os.getenv("RENDER_EXTERNAL_HOSTNAME"))
 
 
 # Application definition
@@ -168,7 +171,9 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = os.getenv('MEDIA_ROOT', os.path.join(BASE_DIR, 'media'))
+# Serve uploaded logos/task images from Django (needed on hosts without a separate media server).
+SERVE_MEDIA_FILES = env_bool('SERVE_MEDIA_FILES', default=DEBUG)
 # Files that must only be served through authorised API endpoints (never via MEDIA_URL).
 PRIVATE_MEDIA_ROOT = os.getenv('PRIVATE_MEDIA_ROOT', os.path.join(BASE_DIR, 'private_media'))
 
@@ -215,6 +220,10 @@ CORS_ALLOW_CREDENTIALS = False
 SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", default=not DEBUG and not RUNNING_TESTS)
 SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", default=not DEBUG and not RUNNING_TESTS)
 CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", default=not DEBUG and not RUNNING_TESTS)
+# Only trust X-Forwarded-Proto when running behind a TLS-terminating proxy such as Render.
+if env_bool("USE_PROXY_SSL_HEADER", default=False):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_REDIRECT_EXEMPT = [r"^api/health/$"]
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = False
 SECURE_CONTENT_TYPE_NOSNIFF = True
