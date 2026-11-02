@@ -2,6 +2,8 @@
 
 Status: `render.yaml` passes Render's Blueprint structure check and the backend image builds, but **it has not been deployed to a live Render account yet**. Treat the first deploy as a test and use the troubleshooting table at the end.
 
+> **Free plan:** `render.yaml` uses only free services (API, static frontend, free PostgreSQL) and needs no card. It has no Redis or Celery worker, no persistent disk, and the API sleeps when idle. The paid setup described below is `render.paid.yaml` (select it as the Blueprint file path to use it).
+
 ## What the Blueprint creates
 
 | Resource | Type | Purpose |

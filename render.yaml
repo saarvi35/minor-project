@@ -1,55 +1,34 @@
-# Render Blueprint for WorkZen. Step-by-step guide: docs/render-deployment.md
+# Render Blueprint for WorkZen on FREE plans only. Step-by-step guide: docs/render-deployment.md
+# The full paid setup (persistent disk, Redis, Celery worker) is in render.paid.yaml.
 #
-# Services:
-#   workzen-api    Django API (Docker) with a persistent disk for uploaded files
-#   workzen-worker Celery worker with the beat scheduler embedded (SLA watchdog)
-#   workzen-web    React frontend (static site)
-#   workzen-redis  Key Value (Redis) broker
-#   workzen-db     PostgreSQL
+# Free-plan limits: the API sleeps after ~15 minutes idle (first request is slow), uploaded files
+# are lost when it restarts or redeploys, the free database expires after a limited period, and
+# there is no Celery worker, so the scheduled SLA watchdog does not run.
 #
-# SECRET_KEY lives in the workzen-shared group because env groups cannot reference databases/services.
 # Values marked "sync: false" are asked for once when the Blueprint is created.
 
 databases:
   - name: workzen-db
     databaseName: workzen
     user: workzen
-    plan: basic-256mb
+    plan: free
+    region: oregon
 
 services:
-  - type: keyvalue
-    name: workzen-redis
-    plan: starter
-    maxmemoryPolicy: noeviction
-    ipAllowList: []
-
   - type: web
     name: workzen-api
     runtime: docker
-    plan: starter
+    plan: free
     region: oregon
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /api/health/
-    disk:
-      name: workzen-uploads
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
-      - fromGroup: workzen-shared
+      - key: SECRET_KEY
+        generateValue: true
       - key: DATABASE_URL
         fromDatabase:
           name: workzen-db
-          property: connectionString
-      - key: CELERY_BROKER_URL
-        fromService:
-          type: keyvalue
-          name: workzen-redis
-          property: connectionString
-      - key: CELERY_RESULT_BACKEND
-        fromService:
-          type: keyvalue
-          name: workzen-redis
           property: connectionString
       - key: DEBUG
         value: "False"
@@ -58,14 +37,10 @@ services:
       - key: SERVE_MEDIA_FILES
         value: "True"
       - key: WEB_CONCURRENCY
-        value: "2"
+        value: "1"
       # Set to "true" to load the demo companies on deploy (presentations), then set back to "false".
       - key: SEED_DEMO_DATA
         value: "false"
-      - key: MEDIA_ROOT
-        value: /var/data/media
-      - key: PRIVATE_MEDIA_ROOT
-        value: /var/data/private_media
       - key: GEMINI_MODEL
         value: gemini-3.5-flash
       - key: GEMINI_REQUEST_TIMEOUT_SECONDS
@@ -84,33 +59,6 @@ services:
         sync: false
       - key: CSRF_TRUSTED_ORIGINS
         sync: false
-
-  - type: worker
-    name: workzen-worker
-    runtime: docker
-    plan: starter
-    region: oregon
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    dockerCommand: celery -A config worker --beat --loglevel=info --concurrency=2
-    envVars:
-      - fromGroup: workzen-shared
-      - key: DATABASE_URL
-        fromDatabase:
-          name: workzen-db
-          property: connectionString
-      - key: CELERY_BROKER_URL
-        fromService:
-          type: keyvalue
-          name: workzen-redis
-          property: connectionString
-      - key: CELERY_RESULT_BACKEND
-        fromService:
-          type: keyvalue
-          name: workzen-redis
-          property: connectionString
-      - key: DEBUG
-        value: "False"
 
   - type: web
     name: workzen-web
@@ -139,11 +87,3 @@ services:
         sync: false
       - key: VITE_GOOGLE_CLIENT_ID
         sync: false
-
-envVarGroups:
-  - name: workzen-shared
-    envVars:
-      - key: SECRET_KEY
-        generateValue: true
-      - key: PYTHON_VERSION
-        value: "3.12"
