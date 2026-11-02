@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { getData, patchData } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import ProjectMessages from "../components/ProjectMessages";
 import {
   buildUserLabel,
   alertError,
@@ -369,6 +370,8 @@ export default function ProjectDetailsPage() {
                 ))}
               </div>
             </section>
+
+            {project?.id ? <ProjectMessages projectId={project.id} projectName={project.name} /> : null}
           </>
         ) : null}
       </section>

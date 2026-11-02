@@ -130,27 +130,13 @@ def _normalise_plan(raw, title, candidate_ids, context_summary):
     }
 
 
-def generate_project_plan(company_user, title, brief):
-    status = provider_status()
-    if not status["available"]:
-        raise AIProviderUnavailable(status["setup_hint"])
-    context = _workspace_context(company_user.company)
-    external_context = context["external"]
-    prompt = f"""You are WorkZen Project Architect. Create a practical execution plan from the project brief.
-Use only the anonymised delivery context below. Choose task assignees only from candidate_id values. Balance work using active_task_count. Create no more than 10 tasks.
-Return strict JSON only with this schema:
-{{"project":{{"name":"","description":"","priority":"LOW|MEDIUM|HIGH|CRITICAL","estimated_duration_days":60}},"executive_summary":"","assumptions":[""],"milestones":[{{"title":"","due_offset_days":14,"outcome":""}}],"risks":[{{"risk":"","mitigation":"","severity":"LOW|MEDIUM|HIGH"}}],"tasks":[{{"title":"","description":"","priority":"LOW|MEDIUM|HIGH","due_offset_days":7,"suggested_candidate_id":"member_1","acceptance_criteria":""}}]}}
-
-PROJECT TITLE: {title}
-PROJECT BRIEF: {brief}
-ANONYMISED DELIVERY CONTEXT: {json.dumps(external_context, default=str)}
-"""
+def _request_gemini_text(prompt, model, temperature):
     key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_AI_API_KEY")
-    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{quote(status['model'], safe='-._')}:generateContent"
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{quote(model, safe='-._')}:generateContent"
     request_body = json.dumps({
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {
-            "temperature": 0.25,
+            "temperature": temperature,
             "responseMimeType": "application/json",
             # Gemini 3.x models spend part of this budget on hidden "thinking" tokens;
             # a small cap truncates the JSON plan mid-string.
@@ -166,11 +152,29 @@ ANONYMISED DELIVERY CONTEXT: {json.dumps(external_context, default=str)}
         )
         with urlopen(request, timeout=_provider_timeout_seconds()) as response:
             response_body = json.loads(response.read().decode("utf-8"))
-        text = response_body["candidates"][0]["content"]["parts"][0]["text"]
+        return response_body["candidates"][0]["content"]["parts"][0]["text"]
     except (HTTPError, URLError, TimeoutError, OSError, KeyError, IndexError, UnicodeDecodeError) as error:
         raise AIProviderUnavailable(
             "Gemini could not generate a plan right now. Please retry shortly and check your Gemini API key, model access, and internet connection."
         ) from error
+
+
+def generate_project_plan(company_user, title, brief):
+    status = provider_status()
+    if not status["available"]:
+        raise AIProviderUnavailable(status["setup_hint"])
+    context = _workspace_context(company_user.company)
+    external_context = context["external"]
+    prompt = f"""You are WorkZen Project Architect. Create a practical execution plan from the project brief.
+Use only the anonymised delivery context below. Choose task assignees only from candidate_id values. Balance work using active_task_count. Create no more than 10 tasks.
+Return strict JSON only with this schema:
+{{"project":{{"name":"","description":"","priority":"LOW|MEDIUM|HIGH|CRITICAL","estimated_duration_days":60}},"executive_summary":"","assumptions":[""],"milestones":[{{"title":"","due_offset_days":14,"outcome":""}}],"risks":[{{"risk":"","mitigation":"","severity":"LOW|MEDIUM|HIGH"}}],"tasks":[{{"title":"","description":"","priority":"LOW|MEDIUM|HIGH","due_offset_days":7,"suggested_candidate_id":"member_1","acceptance_criteria":""}}]}}
+
+PROJECT TITLE: {title}
+PROJECT BRIEF: {brief}
+ANONYMISED DELIVERY CONTEXT: {json.dumps(external_context, default=str)}
+"""
+    text = _request_gemini_text(prompt, status["model"], temperature=0.25)
     summary = {
         "active_member_count": len(context["local_candidates"]),
         "active_project_count": len(external_context["active_projects"]),
@@ -190,6 +194,38 @@ ANONYMISED DELIVERY CONTEXT: {json.dumps(external_context, default=str)}
         provider="gemini",
         model_name=status["model"],
     )
+
+
+def revise_project_plan(plan, actor, instruction):
+    """Ask Gemini to modify a draft plan; only the plan JSON and the instruction are sent."""
+    if plan.company_id != actor.company_id:
+        raise ValueError("This AI plan belongs to another company.")
+    if plan.status == AIProjectPlan.STATUS_APPLIED:
+        raise ValueError("An applied plan can no longer be revised.")
+    status = provider_status()
+    if not status["available"]:
+        raise AIProviderUnavailable(status["setup_hint"])
+    current = {key: value for key, value in plan.plan.items() if key not in {"candidate_assignments", "context_evidence", "revision_history"}}
+    candidate_assignments = plan.plan.get("candidate_assignments", {})
+    prompt = f"""You are WorkZen Project Architect. Revise the existing draft project plan according to the requested changes.
+Apply only what the change request asks for and keep everything else unless it conflicts. Keep assignees limited to the existing candidate_id values. Create no more than 10 tasks.
+Return the COMPLETE updated plan as strict JSON only, using exactly the same schema as the current plan.
+
+CURRENT PLAN: {json.dumps(current, default=str)}
+REQUESTED CHANGES: {instruction}
+"""
+    text = _request_gemini_text(prompt, status["model"], temperature=0.25)
+    context_summary = plan.plan.get("context_evidence", {})
+    revised = _normalise_plan(_extract_json(text), plan.title, set(candidate_assignments), context_summary)
+    revised["candidate_assignments"] = candidate_assignments
+    history = list(plan.plan.get("revision_history", []))[-9:]
+    history.append({"instruction": instruction[:1000], "at": timezone.now().isoformat()})
+    revised["revision_history"] = history
+    plan.plan = revised
+    plan.title = revised["project"]["name"]
+    plan.model_name = status["model"]
+    plan.save(update_fields=["plan", "title", "model_name"])
+    return plan
 
 
 def apply_project_plan(plan, actor):

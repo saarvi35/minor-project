@@ -64,3 +64,19 @@ class Project(models.Model):
             models.Index(fields=["client", "is_active"], name="project_client_active_idx"),
         ]
 
+
+class ProjectMessage(models.Model):
+    """A message in a project's shared thread between its team and its client."""
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="messages")
+    sender = models.ForeignKey("companies.CompanyUser", on_delete=models.CASCADE, related_name="project_messages")
+    body = models.TextField(max_length=2000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        indexes = [models.Index(fields=["project", "id"], name="project_message_thread_idx")]
+
+    def __str__(self):
+        return f"Message {self.pk} on project {self.project_id}"
+

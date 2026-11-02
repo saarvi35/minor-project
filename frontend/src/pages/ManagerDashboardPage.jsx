@@ -6,6 +6,8 @@ import api, { deleteData, getData, patchData, postData, putData } from "../lib/a
 import { useAuth } from "../lib/auth";
 import NotificationCenter from "../components/NotificationCenter";
 import { canAccessMenu, DASHBOARD_MENUS as MENUS, detectDashboardType, ROLE_PERMISSION_FIELDS } from "../lib/dashboardAccess";
+import { downloadPlanDocument } from "../lib/planDocument";
+import ProjectMessages from "../components/ProjectMessages";
 
 const EMPTY_OWNER_OVERVIEW = {
   total_clients: 0,
@@ -774,6 +776,8 @@ export default function ManagerDashboardPage() {
   const [copilotStatus, setCopilotStatus] = useState(null);
   const [copilotForm, setCopilotForm] = useState({ title: "", brief: "" });
   const [copilotPlan, setCopilotPlan] = useState(null);
+  const [copilotInstruction, setCopilotInstruction] = useState("");
+  const [employeeChatProjectId, setEmployeeChatProjectId] = useState("");
 
   const [companies, setCompanies] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -1601,6 +1605,17 @@ export default function ManagerDashboardPage() {
         brief: String(copilotForm.brief || "").trim(),
       });
       setCopilotPlan(plan);
+    });
+  };
+
+  const reviseCopilotPlan = async (event) => {
+    event.preventDefault();
+    const instruction = String(copilotInstruction || "").trim();
+    if (!copilotPlan?.id || copilotPlan.status === "APPLIED" || instruction.length < 5) return;
+    await runAction("ai-revise-plan", async () => {
+      const revised = await postData(`/ai/copilot/plans/${copilotPlan.id}/revise/`, { instruction });
+      setCopilotPlan(revised);
+      setCopilotInstruction("");
     });
   };
 
@@ -4532,7 +4547,10 @@ export default function ManagerDashboardPage() {
                     <div className="space-y-5">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div><p className="text-xs font-extrabold uppercase tracking-widest text-violet-700">Gemini plan draft</p><h3 className="mt-1 text-2xl font-extrabold text-slate-900" style={{ fontFamily: "'Georgia', serif" }}>{copilotPlan.plan?.project?.name || copilotPlan.title}</h3></div>
-                        <button type="button" className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:opacity-60" onClick={applyCopilotPlan} disabled={copilotPlan.status === "APPLIED" || busyKey === "ai-apply-plan"}>{copilotPlan.status === "APPLIED" ? "Plan applied" : busyKey === "ai-apply-plan" ? "Applying..." : "Apply plan to workspace"}</button>
+                        <div className="flex flex-wrap gap-2">
+                          <button type="button" className="rounded-lg border border-violet-300 bg-white px-4 py-2 text-sm font-bold text-violet-800 transition hover:bg-violet-50" onClick={() => downloadPlanDocument(copilotPlan)}>Download plan (.doc)</button>
+                          <button type="button" className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:opacity-60" onClick={applyCopilotPlan} disabled={copilotPlan.status === "APPLIED" || busyKey === "ai-apply-plan" || busyKey === "ai-revise-plan"}>{copilotPlan.status === "APPLIED" ? "Plan applied" : busyKey === "ai-apply-plan" ? "Applying..." : "Apply plan to workspace"}</button>
+                        </div>
                       </div>
                       <p className="rounded-xl bg-violet-50 p-4 text-sm leading-6 text-violet-950">{copilotPlan.plan?.executive_summary || "No executive summary returned."}</p>
                       <div className="grid gap-3 md:grid-cols-2">
@@ -4541,6 +4559,15 @@ export default function ManagerDashboardPage() {
                       </div>
                       <div><p className="mb-2 text-xs font-extrabold uppercase tracking-widest text-slate-500">Suggested tasks</p><div className="max-h-96 space-y-2 overflow-y-auto pr-1">{(copilotPlan.plan?.tasks || []).map((task, index) => <div key={`${task.title}-${index}`} className="rounded-xl border border-slate-200 p-3"><div className="flex items-start justify-between gap-3"><p className="font-bold text-slate-900">{task.title}</p><span className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-extrabold text-blue-800">{task.priority}</span></div><p className="mt-1 text-sm text-slate-600">{task.description}</p>{task.acceptance_criteria ? <p className="mt-2 text-xs font-semibold text-emerald-800">Acceptance: {task.acceptance_criteria}</p> : null}</div>)}</div></div>
                       <p className="text-xs leading-5 text-slate-500">Evidence used: {copilotPlan.plan?.context_evidence?.active_member_count || 0} active team members and {copilotPlan.plan?.context_evidence?.active_project_count || 0} active projects. {copilotPlan.plan?.context_evidence?.external_data_policy}</p>
+                      {copilotPlan.status !== "APPLIED" ? (
+                        <form onSubmit={reviseCopilotPlan} className="rounded-xl border border-violet-200 bg-violet-50/60 p-4">
+                          <label className="block text-sm font-bold text-violet-900">Request improvements
+                            <textarea className="mt-1 min-h-20 w-full rounded-lg border border-violet-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-violet-700 focus:ring-2 focus:ring-violet-200" value={copilotInstruction} onChange={(event) => setCopilotInstruction(event.target.value)} placeholder="Example: Add a QA phase, shorten the timeline to 8 weeks, and split the backend work into smaller tasks." minLength={5} maxLength={1000} required />
+                          </label>
+                          <button className="mt-3 rounded-lg bg-violet-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60" disabled={busyKey === "ai-revise-plan" || copilotInstruction.trim().length < 5}>{busyKey === "ai-revise-plan" ? "Gemini is updating the plan..." : "Update plan"}</button>
+                          {(copilotPlan.plan?.revision_history || []).length ? <p className="mt-2 text-xs text-slate-500">{copilotPlan.plan.revision_history.length} revision(s) applied so far.</p> : null}
+                        </form>
+                      ) : null}
                     </div>
                   )}
                 </article>
@@ -5297,6 +5324,18 @@ export default function ManagerDashboardPage() {
                   </div>
                 )}
               </section>
+
+              {employeeProjects.length ? (
+                <section className="space-y-3">
+                  <label className="block text-sm font-bold text-slate-700">Project messages
+                    <select className="ml-3 rounded-lg border border-slate-300 px-3 py-1.5 text-sm" value={employeeChatProjectId} onChange={(event) => setEmployeeChatProjectId(event.target.value)}>
+                      <option value="">Select a project</option>
+                      {employeeProjects.map((project) => <option key={project?.id} value={project?.id}>{project?.name || `Project ${project?.id}`}</option>)}
+                    </select>
+                  </label>
+                  {employeeChatProjectId ? <ProjectMessages projectId={employeeChatProjectId} projectName={employeeProjects.find((project) => String(project?.id) === String(employeeChatProjectId))?.name} /> : null}
+                </section>
+              ) : null}
             </>
           ) : null}
 

@@ -55,7 +55,7 @@ export function canAccessMenu(roleType, menuId, permissions) {
       "owner-users": permissions.can_manage_users || permissions.can_manage_company,
       "owner-projects": permissions.can_manage_company || permissions.can_create_project || permissions.can_view_all_tasks,
       "owner-tasks": permissions.can_view_all_tasks || permissions.can_manage_company,
-      "ai-project-architect": permissions.can_create_project && permissions.can_assign_task,
+      "ai-project-architect": permissions.can_manage_company,
       "owner-import": permissions.can_manage_company,
       "owner-company": permissions.can_manage_company
     },

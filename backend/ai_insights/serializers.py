@@ -6,6 +6,10 @@ class AIProjectPlanRequestSerializer(serializers.Serializer):
     brief = serializers.CharField(min_length=40, max_length=12000)
 
 
+class AIProjectPlanReviseSerializer(serializers.Serializer):
+    instruction = serializers.CharField(min_length=5, max_length=1000)
+
+
 class TaskPrioritizationSerializer(serializers.Serializer):
     project_id = serializers.IntegerField(required=False)
     limit = serializers.IntegerField(required=False, min_value=1, max_value=100, default=20)

@@ -192,6 +192,7 @@ REST_FRAMEWORK = {
         'registration': '5/hour',
         'password_setup': '10/hour',
         'ai': '10/hour',
+        'project_messages': '120/minute',
     },
 }
 

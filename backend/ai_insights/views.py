@@ -8,8 +8,8 @@ from rest_framework.throttling import ScopedRateThrottle
 
 from companies.utils import get_company_user
 
-from .serializers import AIProjectPlanRequestSerializer, TaskPrioritizationSerializer, WorkloadRecommendationSerializer
-from .copilot import AIProviderUnavailable, apply_project_plan, generate_project_plan, provider_status
+from .serializers import AIProjectPlanRequestSerializer, AIProjectPlanReviseSerializer, TaskPrioritizationSerializer, WorkloadRecommendationSerializer
+from .copilot import AIProviderUnavailable, apply_project_plan, generate_project_plan, provider_status, revise_project_plan
 from .models import AIProjectPlan
 from .services import (
     build_ai_analytics_summary,
@@ -28,10 +28,14 @@ def get_request_company_user(request):
 
 
 def can_plan_work(company_user):
+    """The AI Project Architect is limited to company owners and managers."""
     from companies.utils import get_permission_dict
 
     permissions = get_permission_dict(company_user.role)
-    return permissions.get("can_create_project") and permissions.get("can_assign_task")
+    if permissions.get("can_manage_company"):
+        return True
+    is_manager = "manager" in str(company_user.role.name).lower()
+    return bool(is_manager and permissions.get("can_create_project") and permissions.get("can_assign_task"))
 
 
 class AICopilotStatusAPI(APIView):
@@ -92,6 +96,36 @@ class AIProjectPlanApplyAPI(APIView):
         payload = serialize_plan(plan)
         payload["created_project_id"] = project.id
         return Response(payload, status=201)
+
+
+class AIProjectPlanReviseAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "ai"
+
+    def post(self, request, plan_id):
+        company_user, error = get_request_company_user(request)
+        if error:
+            return error
+        if not can_plan_work(company_user):
+            raise PermissionDenied("You do not have permission to revise a project plan.")
+        try:
+            plan = AIProjectPlan.objects.get(id=plan_id, company=company_user.company)
+        except AIProjectPlan.DoesNotExist:
+            return Response({"error": "AI plan not found."}, status=404)
+        if plan.created_by_id != company_user.id and not company_user.role.can_manage_company:
+            raise PermissionDenied("Only the plan creator or a company owner can revise this AI plan.")
+        if plan.status == AIProjectPlan.STATUS_APPLIED:
+            return Response({"error": "An applied plan can no longer be revised."}, status=400)
+        serializer = AIProjectPlanReviseSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            plan = revise_project_plan(plan, company_user, serializer.validated_data["instruction"])
+        except AIProviderUnavailable as error:
+            return Response({"error": str(error), "provider_status": provider_status()}, status=503)
+        except (ValueError, json.JSONDecodeError) as error:
+            return Response({"error": f"The AI response could not be used safely: {error}"}, status=422)
+        return Response(serialize_plan(plan))
 
 
 def serialize_plan(plan):
