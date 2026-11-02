@@ -6,7 +6,7 @@ from django.utils import timezone
 from accounts.models import User
 from companies.models import Company, CompanyUser, Role
 from hr.models import Attendance, Department, EmployeeProfile, LeaveRequest, PerformanceReview
-from projects.models import Project
+from projects.models import Project, ProjectMessage
 from tasks.models import Task, TaskActivity, TaskComment, TaskNotification
 from tasks.services import sync_project_progress
 from workflows.models import WorkflowRule
@@ -229,6 +229,14 @@ class Command(BaseCommand):
                             message=f"Demo assignment: {task.title}",
                         )
                 sync_project_progress(project)
+                conversation = [
+                    (client, "Hi team, could you share the latest progress update before our review?"),
+                    (manager, "Sure. We have closed the delivery scope and are now on integration testing."),
+                    (employees[0], "Quality assurance is running and I will upload the test summary shortly."),
+                    (client, "Great, thank you. Please keep the documentation updated as well."),
+                ]
+                for sender, body in conversation:
+                    ProjectMessage.objects.get_or_create(project=project, sender=sender, body=body)
 
             WorkflowRule.objects.update_or_create(
                 company=company,

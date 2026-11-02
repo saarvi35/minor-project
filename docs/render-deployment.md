@@ -63,6 +63,20 @@ Optional demo data (needs the web service's **Shell** tab):
 python manage.py seed_multitenant_demo
 ```
 
+## Demo data for presentations
+
+No Shell needed: on `workzen-api` open **Environment**, set `SEED_DEMO_DATA` to `true` and save. The redeploy creates three demo companies (Nimbus Retail, GreenGrid Logistics, Atlas Health Analytics) with owners, managers, HR, clients, employees, projects, tasks, workflow rules and sample project messages. Every demo account uses the password `WorkZenDemo@2026`:
+
+| Role | Nimbus login | GreenGrid login | Atlas login |
+| --- | --- | --- | --- |
+| Owner | priya.owner@nimbus.demo | vikram.owner@greengrid.demo | ananya.owner@atlas.demo |
+| Manager | arjun.manager@nimbus.demo | neha.manager@greengrid.demo | rohan.manager@atlas.demo |
+| HR | kavya.hr@nimbus.demo | pooja.hr@greengrid.demo | sneha.hr@atlas.demo |
+| Client | riya.client@nimbus.demo | kunal.client@greengrid.demo | maya.client@atlas.demo |
+| Employee | dev.employee@nimbus.demo | ishaan.employee@greengrid.demo | nikhil.employee@atlas.demo |
+
+The seed runs on every deploy while the switch is `true` and resets demo records, so set it back to `false` once the data exists. After the presentation, **delete the demo companies or the database**: these passwords are public in this repository.
+
 ## 5. Google sign-in (only if used)
 
 Google Cloud Console -> Credentials -> your OAuth client -> **Authorized JavaScript origins** -> add `https://workzen-web.onrender.com`. The same client ID must be in `GOOGLE_CLIENT_ID` (API) and `VITE_GOOGLE_CLIENT_ID` (frontend).
