@@ -4935,6 +4935,11 @@ export default function ManagerDashboardPage() {
                 ))}
               </div>
             ) : null}
+            {!detailsModal.loading && detailsModal.entityType === "project" && detailsModal.entity?.id ? (
+              <div className="mt-4">
+                <ProjectMessages projectId={detailsModal.entity.id} projectName={detailsModal.entity.name} />
+              </div>
+            ) : null}
           </DashboardModal>
 
           <DashboardModal open={showOwnerCreateProjectModal} title="Create Project" onClose={() => setShowOwnerCreateProjectModal(false)}>
