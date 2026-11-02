@@ -1,18 +1,10 @@
-# Render Blueprint for WorkZen on FREE plans only. Step-by-step guide: docs/render-deployment.md
+# Render Blueprint for WorkZen on FREE plans only (API + static frontend; external free PostgreSQL). Step-by-step guide: docs/render-deployment.md
 # The full paid setup (persistent disk, Redis, Celery worker) is in render.paid.yaml.
 #
 # Free-plan limits: the API sleeps after ~15 minutes idle (first request is slow), uploaded files
-# are lost when it restarts or redeploys, the free database expires after a limited period, and
-# there is no Celery worker, so the scheduled SLA watchdog does not run.
+# are lost when it restarts or redeploys, and there is no Celery worker, so the scheduled SLA watchdog does not run.
 #
 # Values marked "sync: false" are asked for once when the Blueprint is created.
-
-databases:
-  - name: workzen-db
-    databaseName: workzen
-    user: workzen
-    plan: free
-    region: oregon
 
 services:
   - type: web
@@ -26,10 +18,10 @@ services:
     envVars:
       - key: SECRET_KEY
         generateValue: true
+      # Render allows only one free database per account, so the PostgreSQL URL (for example from
+      # Neon) is pasted in manually. Format: postgresql://user:password@host/dbname?sslmode=require
       - key: DATABASE_URL
-        fromDatabase:
-          name: workzen-db
-          property: connectionString
+        sync: false
       - key: DEBUG
         value: "False"
       - key: USE_PROXY_SSL_HEADER
