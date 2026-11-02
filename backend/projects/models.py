@@ -1,4 +1,17 @@
+import uuid
+
+from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 from django.db import models
+
+
+def private_storage():
+    return FileSystemStorage(location=settings.PRIVATE_MEDIA_ROOT)
+
+
+def message_attachment_path(instance, filename):
+    extension = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'bin'
+    return f"project_messages/{instance.project_id}/{uuid.uuid4().hex}.{extension}"
 
 class Project(models.Model):
 
@@ -70,7 +83,11 @@ class ProjectMessage(models.Model):
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey("companies.CompanyUser", on_delete=models.CASCADE, related_name="project_messages")
-    body = models.TextField(max_length=2000)
+    body = models.TextField(max_length=2000, blank=True)
+    attachment = models.FileField(upload_to=message_attachment_path, storage=private_storage, null=True, blank=True)
+    attachment_name = models.CharField(max_length=255, blank=True)
+    attachment_type = models.CharField(max_length=100, blank=True)
+    attachment_size = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

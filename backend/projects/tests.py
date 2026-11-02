@@ -1,10 +1,14 @@
+import tempfile
+
 from django.contrib.auth import get_user_model
+from django.core.files.storage import FileSystemStorage
+from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
 
 from companies.models import Company, CompanyUser, Role
 from tasks.models import Task
 
-from .models import Project
+from .models import Project, ProjectMessage
 
 
 class ProjectTenantAccessTests(APITestCase):
@@ -160,3 +164,59 @@ class ProjectMessageTests(APITestCase):
         Task.objects.filter(assigned_to=self.employee).update(is_archived=True)
         self.client.force_authenticate(self.employee_user)
         self.assertEqual(self.client.get(self.url).status_code, 403)
+
+
+class ProjectMessageAttachmentTests(APITestCase):
+    PDF = b"%PDF-1.4\n1 0 obj<<>>endobj\n%%EOF"
+
+    def setUp(self):
+        ProjectMessageTests.setUp(self)
+        field = ProjectMessage._meta.get_field("attachment")
+        self._original_storage = field.storage
+        self._tmp = tempfile.TemporaryDirectory()
+        field.storage = FileSystemStorage(location=self._tmp.name)
+        self.addCleanup(self._restore_storage, field)
+
+    def _restore_storage(self, field):
+        field.storage = self._original_storage
+        self._tmp.cleanup()
+
+    def upload(self, user, name="plan.pdf", content=None, body="", content_type="application/pdf"):
+        self.client.force_authenticate(user)
+        file = SimpleUploadedFile(name, content if content is not None else self.PDF, content_type=content_type)
+        return self.client.post(self.url, {"body": body, "attachment": file}, format="multipart")
+
+    def test_participants_can_attach_and_download_files(self):
+        created = self.upload(self.client_user, body="Signed contract")
+        self.assertEqual(created.status_code, 201)
+        attachment = created.json()["attachment"]
+        self.assertEqual((attachment["name"], attachment["type"], attachment["is_image"]), ("plan.pdf", "application/pdf", False))
+        self.client.force_authenticate(self.employee_user)
+        listed = self.client.get(self.url).json()
+        self.assertEqual(listed[0]["attachment"]["name"], "plan.pdf")
+        download = self.client.get(f"/api{attachment['url']}")
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(b"".join(download.streaming_content), self.PDF)
+        self.assertEqual(download["X-Content-Type-Options"], "nosniff")
+
+    def test_attachment_only_message_is_allowed_but_empty_message_is_not(self):
+        self.assertEqual(self.upload(self.employee_user).status_code, 201)
+        self.assertEqual(self.client.post(self.url, {"body": ""}, format="json").status_code, 400)
+
+    def test_dangerous_or_mismatched_files_are_rejected(self):
+        for name, content in (("run.exe", b"MZ\x90"), ("page.html", b"<script>1</script>"), ("pic.svg", b"<svg onload=1>"), ("fake.pdf", b"<html>"), ("fake.png", b"%PDF-1.4")):
+            self.assertEqual(self.upload(self.client_user, name=name, content=content).status_code, 400, name)
+
+    def test_oversized_files_are_rejected(self):
+        self.assertEqual(self.upload(self.client_user, content=b"%PDF" + b"0" * (10 * 1024 * 1024)).status_code, 400)
+
+    def test_attachment_access_is_limited_to_participants_and_tenant(self):
+        created = self.upload(self.client_user).json()
+        path = f"/api{created['attachment']['url']}"
+        self.client.force_authenticate(None)
+        self.assertIn(self.client.get(path).status_code, (401, 403))
+        for user in (self.other_employee_user, self.other_client_user, self.hr_user):
+            self.client.force_authenticate(user)
+            self.assertEqual(self.client.get(path).status_code, 403)
+        self.client.force_authenticate(self.foreign_user)
+        self.assertEqual(self.client.get(path).status_code, 404)

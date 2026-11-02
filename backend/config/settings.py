@@ -169,6 +169,8 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# Files that must only be served through authorised API endpoints (never via MEDIA_URL).
+PRIVATE_MEDIA_ROOT = os.getenv('PRIVATE_MEDIA_ROOT', os.path.join(BASE_DIR, 'private_media'))
 
 
 from datetime import timedelta

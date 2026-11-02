@@ -49,3 +49,5 @@ coverage/
 backend/celerybeat-*
 
 
+
+backend/private_media/
